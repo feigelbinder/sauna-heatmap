@@ -107,6 +107,11 @@ body{padding:16px}h1{font-size:22px}.meta{font-size:11px}
 
 </head>
 <body>
+  
+<div id="err" style="color:red;padding:20px;font-size:14px;font-family:monospace"></div>
+<script>window.onerror=function(m,s,l){document.getElementById('err').textContent='JS Error: '+m+' (Zeile '+l+')'}</script>
+
+  
 <div id="app"></div>
 <div class="detail" id="tip"><h4 id="tipTitle"></h4><div class="grid"><span class="lbl">Ø Auslastung</span><span class="val" id="tipAvg"></span><span class="lbl">Min – Max</span><span id="tipRange"></span><span class="lbl">Messpunkte</span><span id="tipN"></span><span class="lbl">Konfidenz</span><span id="tipConf"></span><span class="lbl">Trend</span><span id="tipTrend"></span></div></div>
 
