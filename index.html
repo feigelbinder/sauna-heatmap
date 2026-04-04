@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 
-<html lang="de">
+<html lang='de'>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
 <title>Sauna Heatmap</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -20,7 +20,7 @@ textarea{font-size:10px;height:32px;resize:none}
 button{background:#161b22;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer}
 .nw{overflow-x:auto;margin-bottom:12px;padding-bottom:4px}
 .ng{display:flex;gap:8px}
-.nc{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:10px 12px;min-width:110px;flex-shrink:0}
+.nc{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:10px 12px;min-width:110px;flex-shrink:0;position:relative}
 .nc.top{border-color:#3fb950;box-shadow:0 0 10px rgba(63,185,80,.2)}
 .nc .p{font-size:22px;font-weight:700;margin-bottom:2px}
 .nc .n{font-size:11px;font-weight:600}
@@ -42,8 +42,7 @@ th{font-size:9px;color:#8b949e;font-weight:400;text-align:center;padding:2px}
 .bg{display:grid;grid-template-columns:1fr;gap:6px}
 .bi{display:flex;align-items:center;gap:8px;padding:8px;background:#0d1117;border-radius:8px;border:1px solid #30363d}
 .bb{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
-.bt{font-size:12px;font-weight:600}
-.bs{font-size:10px;color:#8b949e}
+.bt{font-size:12px;font-weight:600}.bs{font-size:10px;color:#8b949e}
 .tp{position:fixed;z-index:99;background:#1c2333;border:1px solid #30363d;border-radius:8px;padding:10px;font-size:11px;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.5);display:none}
 .tp.show{display:block}
 .tp b{display:block;margin-bottom:4px;font-size:12px}
@@ -52,47 +51,37 @@ th{font-size:9px;color:#8b949e;font-weight:400;text-align:center;padding:2px}
 </style>
 </head>
 <body>
-    
-<div id="err" style="color:red;padding:20px;font-size:14px;font-family:monospace"></div>
-<script>window.onerror=function(m,s,l){document.getElementById('err').textContent='JS Error: '+m+' (Zeile '+l+')'}</script>
-
-    
-<div id="a"></div>
-<div class="tp" id="tp"></div>
+<div id='a'></div>
+<div class='tp' id='tp'></div>
 <script>
-var API="https://script.google.com/macros/s/AKfycbxpjTpkOgwSW_b6Jrk0CwokHlG6YYy9JMcEBlqPsr2_D-LY2fLDOxSuw14SACfdRaY/exec";
-var TICOS="https://counter.ticos-systems.cloud/api/gates/counter";
-var SWM=[{id:"30191",n:"Cosimawellenbad"},{id:"30200",n:"Dantebad"},{id:"30203",n:"Michaelibad"},{id:"30204",n:"Muellersches Volksbad"},{id:"30185",n:"Nordbad"},{id:"30188",n:"Suedbad"},{id:"30207",n:"Westbad"}];
-var DAYS=["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
-var DS=["Mo","Di","Mi","Do","Fr","Sa","So"];
+var API='https://script.google.com/macros/s/AKfycbxpjTpkOgwSW_b6Jrk0CwokHlG6YYy9JMcEBlqPsr2_D-LY2fLDOxSuw14SACfdRaY/exec';
+var TICOS='https://counter.ticos-systems.cloud/api/gates/counter';
+var SWM=[{id:'30191',n:'Cosimawellenbad'},{id:'30200',n:'Dantebad'},{id:'30203',n:'Michaelibad'},{id:'30204',n:'Muellersches Volksbad'},{id:'30185',n:'Nordbad'},{id:'30188',n:'Suedbad'},{id:'30207',n:'Westbad'}];
+var DAYS=['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
+var DS=['Mo','Di','Mi','Do','Fr','Sa','So'];
 var TS=[];
-for(var h=6;h<24;h++){TS.push(pad(h)+":00");TS.push(pad(h)+":30");}
-var BAYERN="01.01.2026, 06.01.2026, 03.04.2026, 06.04.2026, 01.05.2026, 14.05.2026, 25.05.2026, 04.06.2026, 15.08.2026, 03.10.2026, 01.11.2026, 25.12.2026, 26.12.2026";
+for(var h=6;h<24;h++){TS.push(pad(h)+':00');TS.push(pad(h)+':30');}
+var BAYERN='01.01.2026, 06.01.2026, 03.04.2026, 06.04.2026, 01.05.2026, 14.05.2026, 25.05.2026, 04.06.2026, 15.08.2026, 03.10.2026, 01.11.2026, 25.12.2026, 26.12.2026';
 var WIN=7;
-var raw=[];var liveNow=null;var sel="__all__";var excl=BAYERN;var showN=true;
+var raw=[];var liveNow=null;var sel='__all__';var excl=BAYERN;var showN=true;
 
-function pad(n){return n<10?“0”+n:””+n;}
-
-function clr(v){
-if(v==null||isNaN(v))return”rgba(255,255,255,.04)”;
-v=Math.max(0,Math.min(100,v));
-return”hsl(”+(120-v*1.2)+”,”+(60+v*.3)+”%,”+(18+v*.18)+”%)”;
-}
-function tc(v){return v>50?“rgba(255,255,255,.95)”:“rgba(255,255,255,.7)”;}
+function pad(n){return n<10?‘0’+n:’’+n;}
+function clr(v){if(v==null||isNaN(v))return’rgba(255,255,255,.04)’;v=Math.max(0,Math.min(100,v));return’hsl(’+(120-v*1.2)+’,’+(60+v*.3)+’%,’+(18+v*.18)+’%)’;}
+function tc(v){return v>50?‘rgba(255,255,255,.95)’:‘rgba(255,255,255,.7)’;}
 
 function exTime(v){
 if(v==null)return null;
 var s=String(v).trim();
-if(s.indexOf(“T”)>3){
+if(s.indexOf(‘T’)>3){
 var m=s.match(/T(\d{2}):(\d{2})/);
 if(m){var hh=parseInt(m[1])+2;if(hh>=24)hh-=24;return rndT(hh,parseInt(m[2]));}
 return null;
 }
-var p=s.replace(/\s*uhr/i,””).split(”:”);
+var p=s.replace(/\s*uhr/i,’’).split(’:’);
 if(p.length>=2){var hh=parseInt(p[0]),mm=parseInt(p[1]);if(!isNaN(hh)&&!isNaN(mm))return rndT(hh,mm);}
 return null;
 }
-function rndT(h,m){var rm=m<15?0:m<45?30:0;if(m>=45)h++;if(h>=24||h<0)return null;return pad(h)+”:”+pad(rm);}
+function rndT(h,m){var rm=m<15?0:m<45?30:0;if(m>=45)h++;if(h>=24||h<0)return null;return pad(h)+’:’+pad(rm);}
 
 function exDay(v){
 if(v==null)return null;
@@ -108,34 +97,36 @@ return null;
 function exDatum(v){
 if(v==null)return null;
 var s=String(v).trim();
-if(/^\d{4}-\d{2}-\d{2}/.test(s)){var d=new Date(s);if(!isNaN(d))return pad(d.getDate())+”.”+pad(d.getMonth()+1)+”.”+d.getFullYear();}
+if(/^\d{4}-\d{2}-\d{2}/.test(s)){var d=new Date(s);if(!isNaN(d))return pad(d.getDate())+’.’+pad(d.getMonth()+1)+’.’+d.getFullYear();}
 return s;
 }
 
 function fCol(row,names){
 var ks=Object.keys(row);
 for(var i=0;i<names.length;i++){if(row[names[i]]!=null)return names[i];}
-for(var i=0;i<names.length;i++){for(var j=0;j<ks.length;j++){if(ks[j].toLowerCase().replace(/[^a-z0-9]/g,””).indexOf(names[i].toLowerCase().replace(/[^a-z0-9]/g,””))>=0)return ks[j];}}
+for(var i=0;i<names.length;i++){for(var j=0;j<ks.length;j++){if(ks[j].toLowerCase().replace(/[^a-z0-9]/g,’’).indexOf(names[i].toLowerCase().replace(/[^a-z0-9]/g,’’))>=0)return ks[j];}}
 return null;
 }
 
-function addSlots(t,n){var p=t.split(”:”);var hh=parseInt(p[0]),mm=parseInt(p[1])+n*30;hh+=Math.floor(mm/60);mm=mm%60;return pad(hh)+”:”+pad(mm);}
+function addSlots(t,n){var p=t.split(’:’);var hh=parseInt(p[0]),mm=parseInt(p[1])+n*30;hh+=Math.floor(mm/60);mm=mm%60;return pad(hh)+’:’+pad(mm);}
 
 function fetchAll(){
-document.getElementById(“a”).innerHTML=’<div style="text-align:center;padding:30vh 0"><div style="font-size:48px">🧖</div><div>Lade Daten…</div></div>’;
-fetch(API,{redirect:“follow”}).then(function(r){return r.text();}).then(function(t){
+var el=document.getElementById(‘a’);
+el.innerHTML=’<div style='text-align:center;padding:30vh 0'><div style='font-size:48px'>🧖</div><div>Lade Daten…</div></div>’;
+fetch(API,{redirect:‘follow’}).then(function(r){return r.text();}).then(function(t){
 var data=JSON.parse(t);
-if(!Array.isArray(data)||data.length===0)throw new Error(“Keine Daten”);
+if(!Array.isArray(data)||data.length===0)throw new Error(‘Keine Daten’);
 raw=data;
 fetchLive();
 }).catch(function(e){
-document.getElementById(“a”).innerHTML=’<div style="text-align:center;padding:20vh 20px"><div style="font-size:36px">⚠️</div><div style="margin:12px 0">’+e.message+’</div><button onclick="fetchAll()" style="background:#58a6ff;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px">Retry</button></div>’;
+var el=document.getElementById(‘a’);
+el.innerHTML=’<div style='text-align:center;padding:20vh 20px'><div style='font-size:36px'>⚠️</div><div style='margin:12px 0'>’+e.message+’</div><button onclick='fetchAll()' style='background:#58a6ff;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px'>Retry</button></div>’;
 });
 }
 
 function fetchLive(){
 var promises=SWM.map(function(s){
-return fetch(TICOS+”?organizationUnitIds=”+s.id).then(function(r){return r.json();}).then(function(d){
+return fetch(TICOS+’?organizationUnitIds=’+s.id).then(function(r){return r.json();}).then(function(d){
 if(d&&d[0])return{name:s.n,cur:d[0].personCount,max:d[0].maxPersonCount,pct:Math.round(d[0].personCount/d[0].maxPersonCount*100)};
 return null;
 }).catch(function(){return null;});
@@ -150,15 +141,15 @@ render();
 function process(){
 if(!raw.length)return{saunas:[],hm:{},bestW:[],stats:{}};
 var r0=raw[0];
-var cS=fCol(r0,[“Sauna”]),cD=fCol(r0,[“Wochentag”]),cT=fCol(r0,[“Uhrzeit”]);
-var cA=fCol(r0,[“Auslastung %”,“Auslastung%”,“Auslastung”]);
-var cDt=fCol(r0,[“Datum”]),cP=fCol(r0,[“Personen”]),cM=fCol(r0,[“Max Kapazitaet”,“Max Kapazitaet”]);
+var cS=fCol(r0,[‘Sauna’]),cD=fCol(r0,[‘Wochentag’]),cT=fCol(r0,[‘Uhrzeit’]);
+var cA=fCol(r0,[‘Auslastung %’,‘Auslastung%’,‘Auslastung’]);
+var cDt=fCol(r0,[‘Datum’]),cP=fCol(r0,[‘Personen’]),cM=fCol(r0,[‘Max Kapazitaet’]);
 var exSet={};
 excl.split(/[,;\n]/).forEach(function(d){d=d.trim();if(d)exSet[d]=true;});
 var saunaSet={};
 var fd=raw.filter(function(row){
 if(cDt&&Object.keys(exSet).length>0){var dt=exDatum(row[cDt]);if(dt&&exSet[dt])return false;}
-if(sel!==”**all**”&&row[cS]!==sel)return false;
+if(sel!==’**all**’&&row[cS]!==sel)return false;
 if(row[cS])saunaSet[row[cS]]=true;
 return true;
 });
@@ -170,7 +161,7 @@ if(!day||!time)return;
 var pct=Number(row[cA]);
 if(isNaN(pct)&&cP&&cM&&Number(row[cM])>0)pct=Math.round(Number(row[cP])/Number(row[cM])*100);
 if(isNaN(pct))return;
-var k=day+”|”+time;
+var k=day+’|’+time;
 if(!grp[k])grp[k]=[];
 grp[k].push(pct);
 });
@@ -185,7 +176,7 @@ var bestW=[];
 for(var di=0;di<DAYS.length;di++){
 for(var ti=0;ti<=TS.length-WIN;ti++){
 var vals=[],ok=true;
-for(var j=0;j<WIN;j++){var c=hm[DAYS[di]+”|”+TS[ti+j]];if(!c||c.avg<=0){ok=false;break;}vals.push(c.avg);}
+for(var j=0;j<WIN;j++){var c=hm[DAYS[di]+’|’+TS[ti+j]];if(!c||c.avg<=0){ok=false;break;}vals.push(c.avg);}
 if(!ok||vals.length<WIN)continue;
 var s=0;for(var j=0;j<vals.length;j++)s+=vals[j];
 bestW.push({day:DAYS[di],from:TS[ti],to:addSlots(TS[ti],WIN),avg:Math.round(s/vals.length),min:Math.min.apply(null,vals),max:Math.max.apply(null,vals),profile:vals});
@@ -193,139 +184,132 @@ bestW.push({day:DAYS[di],from:TS[ti],to:addSlots(TS[ti],WIN),avg:Math.round(s/va
 }
 bestW.sort(function(a,b){return a.avg-b.avg;});
 var allDt=fd.map(function(r){return exDatum(r[cDt]);}).filter(Boolean).sort();
-return{saunas:saunas,hm:hm,bestW:bestW.slice(0,6),stats:{rows:fd.length,from:allDt[0]||””,to:allDt[allDt.length-1]||””}};
+return{saunas:saunas,hm:hm,bestW:bestW.slice(0,6),stats:{rows:fd.length,from:allDt[0]||’’,to:allDt[allDt.length-1]||’’}};
 }
 
 function miniBar(p){
 var mx=Math.max.apply(null,p)||1;
-return p.map(function(v){var h=Math.max(2,Math.round(v/mx*16));return’<div style="width:4px;height:'+h+'px;background:'+clr(v)+';border-radius:1px"></div>’;}).join(””);
-}
-
-function render(){
-var d=process();
-var now=new Date().toLocaleTimeString(“de-DE”);
-var mobile=window.innerWidth<640;
-var out=””;
-
-out+=’<h1>🧖 Sauna Heatmap</h1>’;
-out+=’<div class="m"><span class="badge">🔴 Live</span> ‘+now;
-if(d.stats.from)out+=’ · ‘+d.stats.from+’ – ‘+d.stats.to;
-out+=’ <button onclick="fetchAll()">↻</button></div>’;
-
-// Jetzt gehen?
-var live=liveNow||getLatest();
-if(live&&live.length){
-live.sort(function(a,b){return a.pct-b.pct;});
-out+=’<div style="font-size:12px;font-weight:600;margin-bottom:4px">🚀 Jetzt gehen?’+(liveNow?’ <span class="badge">Echtzeit</span>’:’’)+’</div>’;
-out+=’<div class="nw"><div class="ng">’;
-for(var i=0;i<live.length;i++){
-var s=live[i];
-out+=’<div class="nc'+(i===0?' top':'')+'" style="position:relative"><div class="p" style="color:'+clr(s.pct)+'">’+s.pct+’%</div><div class="n">’+s.name+’</div><div class="s">’+s.cur+’/’+s.max+’ 👤</div>’+(i===0?’<div class="go">GO!</div>’:’’)+’</div>’;
-}
-out+=’</div></div>’;
-}
-
-// Filters
-out+=’<div class="fl">’;
-out+=’<div class="fg"><label>Sauna</label><select id="ss"><option value="__all__">Alle Saunen</option>’;
-for(var i=0;i<d.saunas.length;i++){out+=’<option’+(d.saunas[i]===sel?’ selected’:’’)+’>’+d.saunas[i]+’</option>’;}
-out+=’</select></div>’;
-out+=’<div class="fg"><label>Feiertage</label><textarea id="ex">’+excl+’</textarea></div>’;
-out+=’<label class="chk"><input type=“checkbox” id=“sn”’+(showN?’ checked’:’’)+’ style=“accent-color:#58a6ff”> %</label></div>’;
-
-// Heatmap
-out+=’<div class="hw">’;
-if(mobile){
-out+=’<table><thead><tr><th class="tl"></th>’;
-for(var i=0;i<DAYS.length;i++)out+=’<th style="font-size:11px;font-weight:600;padding:4px 2px">’+DS[i]+’</th>’;
-out+=’</tr></thead><tbody>’;
-for(var ti=0;ti<TS.length;ti++){
-var isH=TS[ti].indexOf(”:00”)>=0;
-out+=’<tr><td class=“tl”’+(isH?’ style=“font-weight:600;color:#c9d1d9”’:’’)+’>’+( isH?TS[ti]:’’)+’</td>’;
-for(var di=0;di<DAYS.length;di++)out+=cellH(d.hm,DAYS[di],TS[ti]);
-out+=’</tr>’;
-}
-out+=’</tbody></table>’;
-}else{
-out+=’<table><thead><tr><th></th>’;
-for(var ti=0;ti<TS.length;ti++)out+=’<th style="width:28px;min-width:28px">’+(TS[ti].indexOf(”:00”)>=0?TS[ti].slice(0,-3):’’)+’</th>’;
-out+=’</tr></thead><tbody>’;
-for(var di=0;di<DAYS.length;di++){
-var has=false;for(var ti=0;ti<TS.length;ti++){var c=d.hm[DAYS[di]+”|”+TS[ti]];if(c&&c.avg>0)has=true;}
-out+=’<tr><td class="dl" style="opacity:'+(has?1:.3)+'">’+DS[di]+’</td>’;
-for(var ti=0;ti<TS.length;ti++)out+=cellH(d.hm,DAYS[di],TS[ti]);
-out+=’</tr>’;
-}
-out+=’</tbody></table>’;
-}
-out+=’</div>’;
-
-// Legend
-out+=’<div class="lg"><span>0%</span><div class="lb">’;
-for(var i=0;i<20;i++)out+=’<div style="flex:1;background:'+clr(i*5)+'"></div>’;
-out+=’</div><span>100%</span> <span style="color:#3fb950">■ leer</span> <span style="color:hsl(60,85%,36%)">■ mittel</span> <span style="color:hsl(0,85%,36%)">■ voll</span></div>’;
-
-// Best windows
-if(d.bestW.length){
-var med=[”🥇”,”🥈”,”🥉”,“4.”,“5.”,“6.”];
-out+=’<div class="bx"><h3>🎯 Beste 3,5h-Fenster</h3><div class="bg">’;
-for(var i=0;i<d.bestW.length;i++){
-var x=d.bestW[i];var di=DAYS.indexOf(x.day);
-out+=’<div class="bi"><div style="width:18px;font-size:13px;text-align:center">’+med[i]+’</div><div class="bb" style="background:'+clr(x.avg)+';color:'+tc(x.avg)+'">’+x.avg+’</div><div style="flex:1"><div class="bt">’+DS[di]+’ ‘+x.from+’ – ‘+x.to+’</div><div class="bs">Ø ‘+x.avg+’% · ‘+x.min+’–’+x.max+’%</div><div style="display:flex;align-items:flex-end;gap:1px;margin-top:3px;height:16px">’+miniBar(x.profile)+’</div></div></div>’;
-}
-out+=’</div></div>’;
-}
-
-out+=’<div class="ft">Durchschnittswerte · BY Feiertage 2026 voreingestellt</div>’;
-document.getElementById(“a”).innerHTML=out;
-
-// Events
-document.getElementById(“ss”).onchange=function(e){sel=e.target.value;render();};
-document.getElementById(“ex”).oninput=function(e){excl=e.target.value;render();};
-document.getElementById(“sn”).onchange=function(e){showN=e.target.checked;render();};
-
-// Tooltip
-var tp=document.getElementById(“tp”);
-var cells=document.querySelectorAll(”.c:not(.e)”);
-for(var i=0;i<cells.length;i++){
-(function(el){
-el.ontouchstart=function(e){
-e.preventDefault();
-tp.innerHTML=’<b>’+el.getAttribute(“data-d”)+’ ‘+el.getAttribute(“data-t”)+’</b>Ø ‘+el.getAttribute(“data-a”)+’% · ‘+el.getAttribute(“data-mi”)+’–’+el.getAttribute(“data-mx”)+’% · ‘+el.getAttribute(“data-n”)+‘x’;
-var r=el.getBoundingClientRect();
-tp.style.left=Math.min(r.left,innerWidth-170)+“px”;
-tp.style.top=Math.max(0,r.top-60)+“px”;
-tp.className=“tp show”;
-};
-el.onmouseenter=function(e){
-tp.innerHTML=’<b>’+el.getAttribute(“data-d”)+’ ‘+el.getAttribute(“data-t”)+’</b>Ø ‘+el.getAttribute(“data-a”)+’% · ‘+el.getAttribute(“data-mi”)+’–’+el.getAttribute(“data-mx”)+’% · ’+el.getAttribute(“data-n”)+‘x’;
-tp.style.left=Math.min(e.clientX+12,innerWidth-170)+“px”;
-tp.style.top=(e.clientY-50)+“px”;
-tp.className=“tp show”;
-};
-el.onmouseleave=function(){tp.className=“tp”;};
-})(cells[i]);
-}
-document.ontouchstart=function(e){if(!e.target.classList.contains(“c”))tp.className=“tp”;};
+return p.map(function(v){var h=Math.max(2,Math.round(v/mx*16));return’<div style='width:4px;height:’+h+‘px;background:’+clr(v)+’;border-radius:1px'></div>’;}).join(’’);
 }
 
 function cellH(hm,day,time){
-var c=hm[day+”|”+time];
-if(!c||c.avg<=0)return’<td class="c e" style="width:28px;height:26px;min-width:28px"></td>’;
-return’<td class="c" style="width:28px;height:26px;min-width:28px;background:'+clr(c.avg)+';color:'+tc(c.avg)+'" data-d="'+day+'" data-t="'+time+'" data-a="'+c.avg+'" data-mi="'+c.min+'" data-mx="'+c.max+'" data-n="'+c.n+'">’+(showN?c.avg:’’)+’</td>’;
+var c=hm[day+’|’+time];
+if(!c||c.avg<=0)return’<td class='c e' style='width:28px;height:26px;min-width:28px'></td>’;
+return’<td class='c' style='width:28px;height:26px;min-width:28px;background:’+clr(c.avg)+’;color:’+tc(c.avg)+’' data-d='’+day+’' data-t='’+time+’' data-a='’+c.avg+’' data-mi='’+c.min+’' data-mx='’+c.max+’' data-n='’+c.n+’'>’+(showN?c.avg:’’)+’</td>’;
 }
 
 function getLatest(){
 if(!raw.length)return[];
 var r0=raw[0];
-var cS=fCol(r0,[“Sauna”]),cDt=fCol(r0,[“Datum”]),cT=fCol(r0,[“Uhrzeit”]);
-var cP=fCol(r0,[“Personen”]),cM=fCol(r0,[“Max Kapazitaet”]),cA=fCol(r0,[“Auslastung %”,“Auslastung”]);
-var lk=””,lr=[];
+var cS=fCol(r0,[‘Sauna’]),cDt=fCol(r0,[‘Datum’]),cT=fCol(r0,[‘Uhrzeit’]);
+var cP=fCol(r0,[‘Personen’]),cM=fCol(r0,[‘Max Kapazitaet’]),cA=fCol(r0,[‘Auslastung %’,‘Auslastung’]);
+var lk=’’,lr=[];
 raw.forEach(function(row){
-var dt=exDatum(row[cDt])||””,tm=exTime(row[cT])||””,k=dt+”|”+tm;
+var dt=exDatum(row[cDt])||’’,tm=exTime(row[cT])||’’,k=dt+’|’+tm;
 if(k>lk){lk=k;lr=[row];}else if(k===lk)lr.push(row);
 });
 return lr.map(function(row){return{name:row[cS],cur:Number(row[cP])||0,max:Number(row[cM])||1,pct:Number(row[cA])||0};}).filter(function(r){return r.name;});
+}
+
+function render(){
+var d=process();
+var now=new Date().toLocaleTimeString(‘de-DE’);
+var mobile=window.innerWidth<640;
+var o=’’;
+
+o+=’<h1>🧖 Sauna Heatmap</h1>’;
+o+=’<div class='m'><span class='badge'>🔴 Live</span> ‘+now;
+if(d.stats.from)o+=’ · ‘+d.stats.from+’ – ‘+d.stats.to;
+o+=’ <button onclick='fetchAll()'>↻</button></div>’;
+
+var live=liveNow||getLatest();
+if(live&&live.length){
+live.sort(function(a,b){return a.pct-b.pct;});
+o+=’<div style='font-size:12px;font-weight:600;margin-bottom:4px'>🚀 Jetzt gehen?’+(liveNow?’ <span class='badge'>Echtzeit</span>’:’’)+’</div>’;
+o+=’<div class='nw'><div class='ng'>’;
+for(var i=0;i<live.length;i++){
+var s=live[i];
+o+=’<div class='nc’+(i===0?’ top’:’’)+’'><div class='p' style='color:’+clr(s.pct)+’'>’+s.pct+’%</div><div class='n'>’+s.name+’</div><div class='s'>’+s.cur+’/’+s.max+’ 👤</div>’+(i===0?’<div class='go'>GO!</div>’:’’)+’</div>’;
+}
+o+=’</div></div>’;
+}
+
+o+=’<div class='fl'>’;
+o+=’<div class='fg'><label>Sauna</label><select id='ss'><option value='**all**'>Alle Saunen</option>’;
+for(var i=0;i<d.saunas.length;i++){o+=’<option’+(d.saunas[i]===sel?’ selected’:’’)+’>’+d.saunas[i]+’</option>’;}
+o+=’</select></div>’;
+o+=’<div class='fg'><label>Feiertage</label><textarea id='ex'>’+excl+’</textarea></div>’;
+o+=’<label class='chk'><input type='checkbox' id='sn'’+(showN?’ checked’:’’)+’ style='accent-color:#58a6ff'> %</label></div>’;
+
+o+=’<div class='hw'>’;
+if(mobile){
+o+=’<table><thead><tr><th class='tl'></th>’;
+for(var i=0;i<DAYS.length;i++)o+=’<th style='font-size:11px;font-weight:600;padding:4px 2px'>’+DS[i]+’</th>’;
+o+=’</tr></thead><tbody>’;
+for(var ti=0;ti<TS.length;ti++){
+var isH=TS[ti].indexOf(’:00’)>=0;
+o+=’<tr><td class='tl'’+(isH?’ style='font-weight:600;color:#c9d1d9'’:’’)+’>’+( isH?TS[ti]:’’)+’</td>’;
+for(var di=0;di<DAYS.length;di++)o+=cellH(d.hm,DAYS[di],TS[ti]);
+o+=’</tr>’;
+}
+o+=’</tbody></table>’;
+}else{
+o+=’<table><thead><tr><th></th>’;
+for(var ti=0;ti<TS.length;ti++)o+=’<th style='width:28px;min-width:28px'>’+(TS[ti].indexOf(’:00’)>=0?TS[ti].slice(0,-3):’’)+’</th>’;
+o+=’</tr></thead><tbody>’;
+for(var di=0;di<DAYS.length;di++){
+var has=false;for(var ti=0;ti<TS.length;ti++){var c=d.hm[DAYS[di]+’|’+TS[ti]];if(c&&c.avg>0)has=true;}
+o+=’<tr><td class='dl' style='opacity:’+(has?1:.3)+’'>’+DS[di]+’</td>’;
+for(var ti=0;ti<TS.length;ti++)o+=cellH(d.hm,DAYS[di],TS[ti]);
+o+=’</tr>’;
+}
+o+=’</tbody></table>’;
+}
+o+=’</div>’;
+
+o+=’<div class='lg'><span>0%</span><div class='lb'>’;
+for(var i=0;i<20;i++)o+=’<div style='flex:1;background:’+clr(i*5)+’'></div>’;
+o+=’</div><span>100%</span> <span style='color:#3fb950'>■ leer</span> <span style='color:hsl(60,85%,36%)'>■ mittel</span> <span style='color:hsl(0,85%,36%)'>■ voll</span></div>’;
+
+if(d.bestW.length){
+var med=[’🥇’,’🥈’,’🥉’,‘4.’,‘5.’,‘6.’];
+o+=’<div class='bx'><h3>🎯 Beste 3,5h-Fenster</h3><div class='bg'>’;
+for(var i=0;i<d.bestW.length;i++){
+var x=d.bestW[i];var di=DAYS.indexOf(x.day);
+o+=’<div class='bi'><div style='width:18px;font-size:13px;text-align:center'>’+med[i]+’</div><div class='bb' style='background:’+clr(x.avg)+’;color:’+tc(x.avg)+’'>’+x.avg+’</div><div style='flex:1'><div class='bt'>’+DS[di]+’ ‘+x.from+’ – ‘+x.to+’</div><div class='bs'>Ø ‘+x.avg+’% · ‘+x.min+’–’+x.max+’%</div><div style='display:flex;align-items:flex-end;gap:1px;margin-top:3px;height:16px'>’+miniBar(x.profile)+’</div></div></div>’;
+}
+o+=’</div></div>’;
+}
+
+o+=’<div class='ft'>Durchschnittswerte · BY Feiertage 2026 voreingestellt</div>’;
+document.getElementById(‘a’).innerHTML=o;
+
+document.getElementById(‘ss’).onchange=function(e){sel=e.target.value;render();};
+document.getElementById(‘ex’).oninput=function(e){excl=e.target.value;render();};
+document.getElementById(‘sn’).onchange=function(e){showN=e.target.checked;render();};
+
+var tp=document.getElementById(‘tp’);
+var cells=document.querySelectorAll(’.c:not(.e)’);
+for(var i=0;i<cells.length;i++){
+(function(el){
+el.ontouchstart=function(e){
+e.preventDefault();
+tp.innerHTML=’<b>’+el.getAttribute(‘data-d’)+’ ‘+el.getAttribute(‘data-t’)+’</b>Ø ‘+el.getAttribute(‘data-a’)+’% · ‘+el.getAttribute(‘data-mi’)+’–’+el.getAttribute(‘data-mx’)+’% · ‘+el.getAttribute(‘data-n’)+‘x’;
+var r=el.getBoundingClientRect();
+tp.style.left=Math.min(r.left,innerWidth-170)+‘px’;
+tp.style.top=Math.max(0,r.top-60)+‘px’;
+tp.className=‘tp show’;
+};
+el.onmouseenter=function(e){
+tp.innerHTML=’<b>’+el.getAttribute(‘data-d’)+’ ‘+el.getAttribute(‘data-t’)+’</b>Ø ‘+el.getAttribute(‘data-a’)+’% · ‘+el.getAttribute(‘data-mi’)+’–’+el.getAttribute(‘data-mx’)+’% · ’+el.getAttribute(‘data-n’)+‘x’;
+tp.style.left=Math.min(e.clientX+12,innerWidth-170)+‘px’;
+tp.style.top=(e.clientY-50)+‘px’;
+tp.className=‘tp show’;
+};
+el.onmouseleave=function(){tp.className=‘tp’;};
+})(cells[i]);
+}
+document.ontouchstart=function(e){if(!e.target.classList.contains(‘c’))tp.className=‘tp’;};
 }
 
 var rt;window.onresize=function(){clearTimeout(rt);rt=setTimeout(function(){if(raw.length)render();},200);};
