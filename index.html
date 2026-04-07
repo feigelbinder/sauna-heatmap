@@ -124,8 +124,29 @@ function getRevision(sa){for(var i=0;i<REVISION.length;i++){if(REVISION[i][0]===
 
 // === FETCH ===
 function fetchAll(){
-  document.getElementById('a').innerHTML='<div style=\'text-align:center;padding:30vh 0\'><div style=\'font-size:48px\'>&#x1f9d6;</div><div>Lade Daten...</div></div>';
-  fetch(API,{redirect:'follow'}).then(function(r){return r.text();}).then(function(t){var d=JSON.parse(t);if(!Array.isArray(d)||!d.length)throw new Error('Keine Daten');raw=d;return Promise.all([fetchLive(),fetchWeather()]);}).then(function(){render();}).catch(function(e){document.getElementById('a').innerHTML='<div style=\'text-align:center;padding:20vh 20px\'><div style=\'font-size:36px\'>&#x26A0;&#xFE0F;</div><div style=\'margin:12px 0\'>'+e.message+'</div><button onclick=\'fetchAll()\' style=\'background:#58a6ff;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px\'>Retry</button></div>';});}
+  document.getElementById('a').innerHTML='<div style=\'text-align:center;padding:30vh 0\'><div style=\'font-size:48px\'>&#x1f9d6;</div><div id=\'loadMsg\'>Lade Daten...</div><div style=\'font-size:10px;color:#8b949e;margin-top:8px\' id=\'loadSub\'>Verbinde mit API...</div></div>';
+  var ctrl=new AbortController();
+  var timer=setTimeout(function(){ctrl.abort();},20000);
+  var el=document.getElementById('loadSub');
+  if(el)el.textContent='Fetching Sheet-Daten...';
+  fetch(API,{redirect:'follow',signal:ctrl.signal}).then(function(r){
+    clearTimeout(timer);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    if(el)el.textContent='Parsing JSON...';
+    return r.text();
+  }).then(function(t){
+    var parsed=JSON.parse(t);
+    // Support both old format (array) and new format ({rows:[]})
+    var d=Array.isArray(parsed)?parsed:(parsed.rows||[]);
+    if(!d.length)throw new Error('Keine Daten'+(parsed.total?' ('+parsed.total+' Zeilen im Sheet, 0 im Zeitfenster)':''));
+    raw=d;
+    if(el)el.textContent='Lade Echtzeit + Wetter...';
+    return Promise.all([fetchLive(),fetchWeather()]);
+  }).then(function(){render();}).catch(function(e){
+    var msg=e.name==='AbortError'?'Timeout: API antwortet nicht (Sheet zu gross?)':e.message;
+    document.getElementById('a').innerHTML='<div style=\'text-align:center;padding:20vh 20px\'><div style=\'font-size:36px\'>&#x26A0;&#xFE0F;</div><div style=\'margin:12px 0;font-size:14px\'>'+msg+'</div><div style=\'font-size:11px;color:#8b949e;margin-bottom:16px\'>API: '+API.slice(0,60)+'...</div><button onclick=\'fetchAll()\' style=\'background:#58a6ff;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px\'>Retry</button></div>';
+  });
+}
 function fetchLive(){return Promise.all(SWM.map(function(s){return fetch(TICOS+'?organizationUnitIds='+s.id).then(function(r){return r.json();}).then(function(d){if(d&&d[0])return{name:s.n,cur:d[0].personCount,max:d[0].maxPersonCount,pct:Math.round(d[0].personCount/d[0].maxPersonCount*100)};return null;}).catch(function(){return null;});})).then(function(r){liveNow=r.filter(Boolean);if(!liveNow.length)liveNow=null;});}
 function fetchWeather(){return fetch('https://api.open-meteo.com/v1/forecast?latitude=48.14&longitude=11.58&daily=precipitation_sum&timezone=Europe/Berlin&past_days=30&forecast_days=2').then(function(r){return r.json();}).then(function(d){if(!d.daily)return;weatherMap={};d.daily.time.forEach(function(t,i){var p=t.split('-');if(p.length===3){var k=p[2]+'.'+p[1]+'.'+p[0];var pr=d.daily.precipitation_sum[i];weatherMap[k]={rain:pr!=null&&pr>2};}});}).catch(function(){weatherMap=null;});}
 
