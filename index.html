@@ -113,7 +113,14 @@ function addSlots(t,n){var p=t.split(':');var hh=parseInt(p[0]),mm=parseInt(p[1]
 function exTime(v){if(v==null)return null;var s=String(v).trim();if(s.indexOf('T')>3||/^\d{4}-\d{2}-\d{2}\s/.test(s)){var m=s.match(/(\d{2}):(\d{2})(?::|\s|$)/);if(m){if(/^\d{4}-\d{2}-\d{2}\s/.test(s))return floorT(parseInt(m[1]),parseInt(m[2]));var d=new Date(s);if(!isNaN(d))return floorT(d.getHours(),d.getMinutes());}return null;}var p=s.replace(/\s*uhr/i,'').split(':');if(p.length>=2){var hh=parseInt(p[0]),mm=parseInt(p[1]);if(!isNaN(hh)&&!isNaN(mm))return floorT(hh,mm);}return null;}
 function floorT(h,m){if(h<0||h>=24)return null;return pad(h)+':'+(m>=30?'30':'00');}
 function exDay(v){if(v==null)return null;var s=String(v).trim();if(/^\d{4}-\d{2}-\d{2}/.test(s)){var d=new Date(s);if(!isNaN(d))return DAYS[[6,0,1,2,3,4,5][d.getDay()]];}var l=s.toLowerCase();var en={monday:0,tuesday:1,wednesday:2,thursday:3,friday:4,saturday:5,sunday:6};if(en[l]!=null)return DAYS[en[l]];for(var i=0;i<DAYS.length;i++){if(DAYS[i].toLowerCase()===l||DAYS[i].toLowerCase().indexOf(l.slice(0,3))===0)return DAYS[i];}return null;}
-function exDatum(v){if(v==null)return null;var s=String(v).trim();if(/^\d{4}-\d{2}-\d{2}/.test(s)){var p=s.split(/[-T\s]/);if(p.length>=3)return p[2]+'.'+p[1]+'.'+p[0];}var m=s.match(/^(\d{1,2}\.\d{1,2}\.\d{4})/);if(m)return m[1];return s;}
+function exDatum(v){
+  if(v==null)return null;var s=String(v).trim();
+  // ISO date → use Date object for correct timezone
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)){var d=new Date(s);if(!isNaN(d))return pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.'+d.getFullYear();}
+  // DD.MM.YYYY (possibly with time suffix)
+  var m=s.match(/^(\d{1,2}\.\d{1,2}\.\d{4})/);if(m)return m[1];
+  return s;
+}
 function fCol(row,names){var ks=Object.keys(row);for(var i=0;i<names.length;i++){if(row[names[i]]!=null)return names[i];}for(var i=0;i<names.length;i++){for(var j=0;j<ks.length;j++){if(ks[j].toLowerCase().replace(/[^a-z0-9]/g,'').indexOf(names[i].toLowerCase().replace(/[^a-z0-9]/g,''))>=0)return ks[j];}}return null;}
 
 function isDam(sa,day,time){var dd=DAMEN[sa];if(!dd)return false;for(var i=0;i<dd.length;i++){if(dd[i].d===day){if(!dd[i].from)return true;if(time>=dd[i].from&&time<dd[i].to)return true;}}return false;}
