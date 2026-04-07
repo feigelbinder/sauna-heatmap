@@ -113,7 +113,7 @@ function addSlots(t,n){var p=t.split(':');var hh=parseInt(p[0]),mm=parseInt(p[1]
 function exTime(v){if(v==null)return null;var s=String(v).trim();if(s.indexOf('T')>3||/^\d{4}-\d{2}-\d{2}\s/.test(s)){var m=s.match(/(\d{2}):(\d{2})(?::|\s|$)/);if(m){if(/^\d{4}-\d{2}-\d{2}\s/.test(s))return floorT(parseInt(m[1]),parseInt(m[2]));var d=new Date(s);if(!isNaN(d))return floorT(d.getHours(),d.getMinutes());}return null;}var p=s.replace(/\s*uhr/i,'').split(':');if(p.length>=2){var hh=parseInt(p[0]),mm=parseInt(p[1]);if(!isNaN(hh)&&!isNaN(mm))return floorT(hh,mm);}return null;}
 function floorT(h,m){if(h<0||h>=24)return null;return pad(h)+':'+(m>=30?'30':'00');}
 function exDay(v){if(v==null)return null;var s=String(v).trim();if(/^\d{4}-\d{2}-\d{2}/.test(s)){var d=new Date(s);if(!isNaN(d))return DAYS[[6,0,1,2,3,4,5][d.getDay()]];}var l=s.toLowerCase();var en={monday:0,tuesday:1,wednesday:2,thursday:3,friday:4,saturday:5,sunday:6};if(en[l]!=null)return DAYS[en[l]];for(var i=0;i<DAYS.length;i++){if(DAYS[i].toLowerCase()===l||DAYS[i].toLowerCase().indexOf(l.slice(0,3))===0)return DAYS[i];}return null;}
-function exDatum(v){if(v==null)return null;var s=String(v).trim();if(/^\d{4}-\d{2}-\d{2}/.test(s)){var p=s.split(/[-T\s]/);if(p.length>=3)return p[2]+'.'+p[1]+'.'+p[0];}return s;}
+function exDatum(v){if(v==null)return null;var s=String(v).trim();if(/^\d{4}-\d{2}-\d{2}/.test(s)){var p=s.split(/[-T\s]/);if(p.length>=3)return p[2]+'.'+p[1]+'.'+p[0];}var m=s.match(/^(\d{1,2}\.\d{1,2}\.\d{4})/);if(m)return m[1];return s;}
 function fCol(row,names){var ks=Object.keys(row);for(var i=0;i<names.length;i++){if(row[names[i]]!=null)return names[i];}for(var i=0;i<names.length;i++){for(var j=0;j<ks.length;j++){if(ks[j].toLowerCase().replace(/[^a-z0-9]/g,'').indexOf(names[i].toLowerCase().replace(/[^a-z0-9]/g,''))>=0)return ks[j];}}return null;}
 
 function isDam(sa,day,time){var dd=DAMEN[sa];if(!dd)return false;for(var i=0;i<dd.length;i++){if(dd[i].d===day){if(!dd[i].from)return true;if(time>=dd[i].from&&time<dd[i].to)return true;}}return false;}
@@ -123,8 +123,29 @@ function getHoursTxt(sa){var h=SAUNA_HRS[sa];if(!h)return'';if(h.def)return'Mo-S
 function getRevision(sa){for(var i=0;i<REVISION.length;i++){if(REVISION[i][0]===sa)return REVISION[i][1]+' &ndash; '+REVISION[i][2];}return null;}
 
 // === FETCH ===
+var LOAD_QUOTES=[
+  'Der Aufguss wird vorbereitet... heute Bergamotte.',
+  'Der Aufguss wird vorbereitet... heute Blutorange.',
+  'Sauna wird auf 90\u00b0 aufgeheizt...',
+  'Kurz durchl\u00fcften vor dem Aufguss...',
+  'Die Birkenzweige werden eingeweicht...',
+  'Saunatuch wird ausgebreitet...',
+  'Saunameister pr\u00fcft die Temperatur...',
+  'Eisbecken wird frisch bef\u00fcllt...',
+  'F\u00fcnf Tropfen Eukalyptus auf den Stein...',
+  'Die Sanduhr wird umgedreht...',
+  'Wedeltechnik wird ge\u00fcbt...'
+];
+var loadQuoteTimer=null;
+
 function fetchAll(){
-  document.getElementById('a').innerHTML='<div style=\'text-align:center;padding:30vh 0\'><div style=\'font-size:48px;animation:pulse 1.5s infinite\'>&#x1f9d6;</div><div id=\'loadMsg\'>Lade Daten...</div><div style=\'font-size:10px;color:#8b949e;margin-top:8px\' id=\'loadSub\'>Verbinde mit API...</div><div style=\'margin-top:12px\'><div style=\'width:40px;height:40px;border:3px solid #30363d;border-top-color:#58a6ff;border-radius:50%;margin:0 auto;animation:spin 1s linear infinite\'></div></div></div><style>@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>';
+  document.getElementById('a').innerHTML='<div style=\'text-align:center;padding:25vh 0\'><div style=\'font-size:72px;animation:pulse 3s ease-in-out infinite\'>&#x1f9d6;</div><div style=\'font-size:14px;margin-top:12px\' id=\'loadMsg\'>Lade Daten...</div><div style=\'font-size:11px;color:#8b949e;margin-top:6px;min-height:18px\' id=\'loadSub\'>Verbinde mit API...</div><div style=\'font-size:11px;color:#58a6ff;margin-top:16px;font-style:italic;min-height:18px;opacity:.7\' id=\'loadQuote\'></div></div><style>@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.92)}}</style>';
+  // Start rotating quotes
+  var qi=Math.floor(Math.random()*LOAD_QUOTES.length);
+  var qEl=function(){return document.getElementById('loadQuote');};
+  if(qEl())qEl().textContent=LOAD_QUOTES[qi];
+  if(loadQuoteTimer)clearInterval(loadQuoteTimer);
+  loadQuoteTimer=setInterval(function(){qi=(qi+1)%LOAD_QUOTES.length;if(qEl())qEl().textContent=LOAD_QUOTES[qi];},3500);
   var ctrl=new AbortController();
   var timer=setTimeout(function(){ctrl.abort();},60000);
   var el=document.getElementById('loadSub');
@@ -141,9 +162,10 @@ function fetchAll(){
     var d=Array.isArray(parsed)?parsed:(parsed.rows||[]);
     if(!d.length)throw new Error('Keine Daten erhalten (Array leer)');
     raw=d;
-    if(el)el.textContent='Lade Echtzeit + Wetter... ('+d.length+' Zeilen)';
+    if(el)el.textContent='Lade Echtzeit + Wetter... ('+d.length+' Messwerte)';
     return Promise.all([fetchLive(),fetchWeather()]);
-  }).then(function(){render();}).catch(function(e){
+  }).then(function(){if(loadQuoteTimer)clearInterval(loadQuoteTimer);render();}).catch(function(e){
+    if(loadQuoteTimer)clearInterval(loadQuoteTimer);
     var msg=e.name==='AbortError'?'Timeout nach 60s: API antwortet nicht':e.message;
     document.getElementById('a').innerHTML='<div style=\'text-align:center;padding:15vh 20px;max-width:500px;margin:0 auto\'>'
       +'<div style=\'font-size:36px;margin-bottom:12px\'>&#x26A0;&#xFE0F;</div>'
@@ -177,8 +199,8 @@ function process(){
       var dt=exDatum(row[cDt]);
       if(dt){
         dt=dt.trim();
-        if(exSet[dt]){if(!debugFiltered[dt])debugFiltered[dt]=0;debugFiltered[dt]++;return false;}
-        if(ferienSet[dt]){return false;}
+        if(exSet[dt]){debugFiltered[dt]=true;return false;}
+        if(ferienSet[dt]){debugFiltered[dt]=true;return false;}
       }
     }
     if(sel!=='__all__'&&row[cS]!==sel)return false;
@@ -269,11 +291,8 @@ function render(){
   if(exclOn||exclFerien){
     var fKeys=Object.keys(d.debugFiltered||{});
     if(fKeys.length){
-      o+='<div style=\'font-size:9px;color:#8b949e;margin-bottom:4px\'>&#x274C; Rausgefiltert: ';
-      for(var i=0;i<fKeys.length;i++){o+=(i?', ':'')+fKeys[i]+' ('+d.debugFiltered[fKeys[i]]+'x)';}
-      o+='</div>';
+      o+='<div style=\'font-size:9px;color:#8b949e;margin-bottom:8px\'>&#x274C; Ausgeblendet: '+fKeys.join(', ')+'</div>';
     }
-    o+='<div style=\'font-size:9px;color:#8b949e;margin-bottom:8px\'>&#x2705; Verbleibend: '+d.stats.rows+' Datenpunkte'+(d.stats.from?' ('+d.stats.from+' &ndash; '+d.stats.to+')':'')+'</div>';
   }
 
   // Sauna info
