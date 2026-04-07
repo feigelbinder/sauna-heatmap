@@ -124,27 +124,40 @@ function getRevision(sa){for(var i=0;i<REVISION.length;i++){if(REVISION[i][0]===
 
 // === FETCH ===
 function fetchAll(){
-  document.getElementById('a').innerHTML='<div style=\'text-align:center;padding:30vh 0\'><div style=\'font-size:48px\'>&#x1f9d6;</div><div id=\'loadMsg\'>Lade Daten...</div><div style=\'font-size:10px;color:#8b949e;margin-top:8px\' id=\'loadSub\'>Verbinde mit API...</div></div>';
+  document.getElementById('a').innerHTML='<div style=\'text-align:center;padding:30vh 0\'><div style=\'font-size:48px;animation:pulse 1.5s infinite\'>&#x1f9d6;</div><div id=\'loadMsg\'>Lade Daten...</div><div style=\'font-size:10px;color:#8b949e;margin-top:8px\' id=\'loadSub\'>Verbinde mit API...</div><div style=\'margin-top:12px\'><div style=\'width:40px;height:40px;border:3px solid #30363d;border-top-color:#58a6ff;border-radius:50%;margin:0 auto;animation:spin 1s linear infinite\'></div></div></div><style>@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>';
   var ctrl=new AbortController();
-  var timer=setTimeout(function(){ctrl.abort();},20000);
+  var timer=setTimeout(function(){ctrl.abort();},60000);
   var el=document.getElementById('loadSub');
   if(el)el.textContent='Fetching Sheet-Daten...';
   fetch(API,{redirect:'follow',signal:ctrl.signal}).then(function(r){
     clearTimeout(timer);
-    if(!r.ok)throw new Error('HTTP '+r.status);
+    if(!r.ok)throw new Error('HTTP '+r.status+' '+r.statusText);
     if(el)el.textContent='Parsing JSON...';
     return r.text();
   }).then(function(t){
-    var parsed=JSON.parse(t);
-    // Support both old format (array) and new format ({rows:[]})
+    if(!t||t.trim().length===0)throw new Error('Leere Antwort von der API');
+    if(t.trim().charAt(0)==='<')throw new Error('HTML statt JSON erhalten (evtl. Apps Script Fehler). Teste die API-URL direkt im Browser.');
+    var parsed;try{parsed=JSON.parse(t);}catch(pe){throw new Error('JSON Parse Error: '+t.substring(0,200));}
     var d=Array.isArray(parsed)?parsed:(parsed.rows||[]);
-    if(!d.length)throw new Error('Keine Daten'+(parsed.total?' ('+parsed.total+' Zeilen im Sheet, 0 im Zeitfenster)':''));
+    if(!d.length)throw new Error('Keine Daten erhalten (Array leer)');
     raw=d;
-    if(el)el.textContent='Lade Echtzeit + Wetter...';
+    if(el)el.textContent='Lade Echtzeit + Wetter... ('+d.length+' Zeilen)';
     return Promise.all([fetchLive(),fetchWeather()]);
   }).then(function(){render();}).catch(function(e){
-    var msg=e.name==='AbortError'?'Timeout: API antwortet nicht (Sheet zu gross?)':e.message;
-    document.getElementById('a').innerHTML='<div style=\'text-align:center;padding:20vh 20px\'><div style=\'font-size:36px\'>&#x26A0;&#xFE0F;</div><div style=\'margin:12px 0;font-size:14px\'>'+msg+'</div><div style=\'font-size:11px;color:#8b949e;margin-bottom:16px\'>API: '+API.slice(0,60)+'...</div><button onclick=\'fetchAll()\' style=\'background:#58a6ff;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px\'>Retry</button></div>';
+    var msg=e.name==='AbortError'?'Timeout nach 60s: API antwortet nicht':e.message;
+    document.getElementById('a').innerHTML='<div style=\'text-align:center;padding:15vh 20px;max-width:500px;margin:0 auto\'>'
+      +'<div style=\'font-size:36px;margin-bottom:12px\'>&#x26A0;&#xFE0F;</div>'
+      +'<div style=\'margin-bottom:12px;font-size:14px\'>'+msg+'</div>'
+      +'<button onclick=\'fetchAll()\' style=\'background:#58a6ff;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;margin-bottom:20px\'>Retry</button>'
+      +'<details style=\'text-align:left;margin-top:16px;border:1px solid #30363d;border-radius:8px;padding:12px;background:#161b22\'>'
+      +'<summary style=\'cursor:pointer;font-size:12px;color:#8b949e;margin-bottom:8px\'>&#x1f527; Troubleshooting</summary>'
+      +'<div style=\'font-size:11px;color:#8b949e;line-height:1.8\'>'
+      +'<b>1. API testen:</b> <a href=\''+API+'\' target=\'_blank\' style=\'color:#58a6ff;word-break:break-all\'>API-URL im Browser oeffnen</a><br>'
+      +'<b>2. Apps Script pruefen:</b> Gibt es nur eine doGet()? Stimmt die Sheet-ID?<br>'
+      +'<b>3. Berechtigungen:</b> Apps Script ausfuehren > Berechtigungen neu erteilen<br>'
+      +'<b>4. Deployment:</b> Bereitstellung verwalten > Stift > Neue Version > Bereitstellen<br>'
+      +'<b>5. Sheet-ID:</b> <code style=\'background:#0d1117;padding:2px 4px;border-radius:3px\'>1PCvPFyERck2HMAF2W5HBqccXq1nGsmrUpNos-e4if5M</code>'
+      +'</div></details></div>';
   });
 }
 function fetchLive(){return Promise.all(SWM.map(function(s){return fetch(TICOS+'?organizationUnitIds='+s.id).then(function(r){return r.json();}).then(function(d){if(d&&d[0])return{name:s.n,cur:d[0].personCount,max:d[0].maxPersonCount,pct:Math.round(d[0].personCount/d[0].maxPersonCount*100)};return null;}).catch(function(){return null;});})).then(function(r){liveNow=r.filter(Boolean);if(!liveNow.length)liveNow=null;});}
@@ -158,8 +171,16 @@ function process(){
   var ferienSet=exclFerien?getFerienDates():{};
   var saunaSet={};raw.forEach(function(row){if(row[cS])saunaSet[row[cS]]=true;});
   var saunas=Object.keys(saunaSet).sort();
+  var debugFiltered={};
   var fd=raw.filter(function(row){
-    if(cDt){var dt=exDatum(row[cDt]);if(dt&&exSet[dt])return false;if(dt&&ferienSet[dt])return false;}
+    if(cDt){
+      var dt=exDatum(row[cDt]);
+      if(dt){
+        dt=dt.trim();
+        if(exSet[dt]){if(!debugFiltered[dt])debugFiltered[dt]=0;debugFiltered[dt]++;return false;}
+        if(ferienSet[dt]){return false;}
+      }
+    }
     if(sel!=='__all__'&&row[cS]!==sel)return false;
     if(wFilt!=='all'&&weatherMap&&cDt){var dt=exDatum(row[cDt]);var w=dt?weatherMap[dt]:null;if(w){if(wFilt==='sun'&&w.rain)return false;if(wFilt==='rain'&&!w.rain)return false;}}
     return true;
@@ -172,7 +193,7 @@ function process(){
   var bestW=[];var maxOv=Math.floor(WIN/2);for(var i=0;i<allW.length&&bestW.length<6;i++){var w=allW[i];var tooClose=false;for(var j=0;j<bestW.length;j++){if(bestW[j].di!==w.di)continue;var oS=Math.max(w.ti,bestW[j].ti);var oE=Math.min(w.ti+WIN,bestW[j].ti+WIN);if(oE-oS>maxOv){tooClose=true;break;}}if(!tooClose)bestW.push(w);}
   var bestKey=bestW.length?{day:bestW[0].day,from:bestW[0].ti,to:bestW[0].ti+WIN}:null;
   var allDt=fd.map(function(r){return exDatum(r[cDt]);}).filter(Boolean).sort();
-  return{saunas:saunas,hm:hm,bestW:bestW,bestKey:bestKey,damenRules:damenRules,stats:{rows:fd.length,from:allDt[0]||'',to:allDt[allDt.length-1]||''}};
+  return{saunas:saunas,hm:hm,bestW:bestW,bestKey:bestKey,damenRules:damenRules,debugFiltered:debugFiltered,stats:{rows:fd.length,from:allDt[0]||'',to:allDt[allDt.length-1]||''}};
 }
 
 // === RENDER HELPERS ===
@@ -197,7 +218,23 @@ function cellH(hm,day,time,dam,open){
 }
 
 function getLatest(){if(!raw.length)return[];var r0=raw[0];var cS=fCol(r0,['Sauna']),cDt=fCol(r0,['Datum']),cT=fCol(r0,['Uhrzeit']),cP=fCol(r0,['Personen']),cM=fCol(r0,['Max Kapazitaet']);var lk='',lr=[];raw.forEach(function(row){var dt=exDatum(row[cDt])||'',tm=exTime(row[cT])||'',k=dt+'|'+tm;if(k>lk){lk=k;lr=[row];}else if(k===lk)lr.push(row);});return lr.map(function(row){var p=Number(row[cP])||0;var mx=Number(row[cM])||1;return{name:row[cS],cur:p,max:mx,pct:Math.round(p/mx*100)};}).filter(function(r){return r.name;});}
-function getLastPerSauna(){if(!raw.length)return{};var r0=raw[0];var cS=fCol(r0,['Sauna']),cDt=fCol(r0,['Datum']);var map={};raw.forEach(function(row){var name=row[cS];if(!name)return;var dt=exDatum(row[cDt])||'';if(!map[name])map[name]={from:dt,to:dt,n:0};map[name].n++;if(dt<map[name].from)map[name].from=dt;if(dt>map[name].to)map[name].to=dt;});return map;}
+function getLastPerSauna(){
+  if(!raw.length)return{};
+  var r0=raw[0];var cS=fCol(r0,['Sauna']),cDt=fCol(r0,['Datum']),cT=fCol(r0,['Uhrzeit']);
+  var map={};
+  raw.forEach(function(row){
+    var name=row[cS];if(!name)return;
+    var dt=exDatum(row[cDt])||'';
+    var tm=exTime(row[cT])||'';
+    var key=dt+'|'+tm;
+    if(!map[name])map[name]={from:dt,to:dt,lastKey:key,lastDt:dt,lastTm:tm,n:0};
+    map[name].n++;
+    if(dt<map[name].from)map[name].from=dt;
+    if(key>map[name].lastKey){map[name].lastKey=key;map[name].lastDt=dt;map[name].lastTm=tm;}
+    if(dt>map[name].to)map[name].to=dt;
+  });
+  return map;
+}
 
 // === MAIN RENDER ===
 function render(){
@@ -216,7 +253,7 @@ function render(){
   if(liveNow){for(var i=0;i<liveNow.length;i++){var l=liveNow[i];var f=false;for(var j=0;j<live.length;j++){if(live[j].name===l.name){live[j].cur=l.cur;live[j].max=l.max;live[j].pct=l.pct;live[j].rt=true;f=true;break;}}if(!f)live.push({name:l.name,cur:l.cur,max:l.max,pct:l.pct,rt:true});}}
   if(live.length){live.sort(function(a,b){return a.pct-b.pct;});
     o+='<div class=\'section\'><div class=\'section-label\'>&#x1f680; Jetzt gehen?</div><div class=\'ng\'>';
-    for(var i=0;i<live.length;i++){var s=live[i];var lp=lps[s.name];var tip=s.rt?'Echtzeit via API':'Letzte Messung';if(lp)tip+=' | Heatmap: '+lp.from+' - '+lp.to+' ('+lp.n+'x)';
+    for(var i=0;i<live.length;i++){var s=live[i];var lp=lps[s.name];      var tip=s.rt?'Echtzeit via API':'Letzte Messung';if(lp)tip+=' | Heatmap: '+lp.from+' - '+lp.to+' | Letzter Punkt: '+lp.lastDt+' '+lp.lastTm+' | '+lp.n+' Datenpunkte';
       o+='<div class=\'nc'+(i===0?' top':'')+(s.name===sel?' sel':'')+'\' onclick=\'pick(this)\' data-name=\''+s.name+'\' data-tip=\''+tip+'\'><div class=\'p\' style=\'color:'+clr(s.pct)+'\'>'+s.pct+'%</div><div class=\'n\'>'+s.name+'</div><div class=\'s\'>'+s.cur+'/'+s.max+(s.rt?' &#x1f7e2;':'')+'</div>'+(i===0?'<div class=\'go\'>GO!</div>':'')+'</div>';}
     o+='</div></div>';}
 
@@ -228,6 +265,16 @@ function render(){
   o+='<div class=\'tog'+(showConf?' on':'')+'\' id=\'tConf\'><span class=\'dot\'></span>Konfidenz</div>';
   if(hasW){o+='<div class=\'pill-g\'><button class=\'pill'+(wFilt==='all'?' act':'')+'\' data-w=\'all\'>Alle</button><button class=\'pill'+(wFilt==='sun'?' act':'')+'\' data-w=\'sun\'>&#x2600;&#xFE0F;</button><button class=\'pill'+(wFilt==='rain'?' act':'')+'\' data-w=\'rain\'>&#x1f327;&#xFE0F;</button></div>';}
   o+='</div>';
+  // Debug: show which dates were filtered
+  if(exclOn||exclFerien){
+    var fKeys=Object.keys(d.debugFiltered||{});
+    if(fKeys.length){
+      o+='<div style=\'font-size:9px;color:#8b949e;margin-bottom:4px\'>&#x274C; Rausgefiltert: ';
+      for(var i=0;i<fKeys.length;i++){o+=(i?', ':'')+fKeys[i]+' ('+d.debugFiltered[fKeys[i]]+'x)';}
+      o+='</div>';
+    }
+    o+='<div style=\'font-size:9px;color:#8b949e;margin-bottom:8px\'>&#x2705; Verbleibend: '+d.stats.rows+' Datenpunkte'+(d.stats.from?' ('+d.stats.from+' &ndash; '+d.stats.to+')':'')+'</div>';
+  }
 
   // Sauna info
   var dt=DAMEN_TXT[sel];
