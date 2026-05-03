@@ -94,9 +94,10 @@ var FERIEN_RANGES=[['16.02.2026','20.02.2026'],['30.03.2026','10.04.2026'],['26.
 var WIN=8;
 var SAUNA_HRS={Cosimawellenbad:{def:['09:00','23:00']},Dantebad:{def:['07:30','23:00']},Michaelibad:{def:['07:30','23:00']},'Muellersches Volksbad':{def:['09:00','23:00']},Nordbad:{def:['07:30','23:00']},Suedbad:{def:['09:00','23:00']},Westbad:{def:['07:30','23:00']},'Phoenixbad Sauna':{Montag:['09:00','23:00'],Dienstag:['09:00','23:00'],Mittwoch:['09:00','23:00'],Donnerstag:['09:00','23:00'],Freitag:['09:00','23:30'],Samstag:['08:00','23:30'],Sonntag:['08:00','23:00']},'Fresch Sauna':{def:['09:00','22:00']}};
 var SAUNA_URL={Cosimawellenbad:'https://www.swm.de/baeder/saunen-muenchen#zeiten',Dantebad:'https://www.swm.de/baeder/saunen-muenchen#zeiten',Michaelibad:'https://www.swm.de/baeder/saunen-muenchen#zeiten','Muellersches Volksbad':'https://www.swm.de/baeder/saunen-muenchen#zeiten',Nordbad:'https://www.swm.de/baeder/saunen-muenchen#zeiten',Suedbad:'https://www.swm.de/baeder/saunen-muenchen#zeiten',Westbad:'https://www.swm.de/baeder/saunen-muenchen#zeiten','Phoenixbad Sauna':'https://phoenixbad.de/oeffnungszeiten-preise/','Fresch Sauna':'https://www.fresch-freising.de/oeffnungszeiten-preise'};
+var SWM_NAMES={Cosimawellenbad:1,Dantebad:1,Michaelibad:1,'Muellersches Volksbad':1,Nordbad:1,Suedbad:1,Westbad:1};
 var DAMEN={Cosimawellenbad:[{d:'Montag'}],Dantebad:[{d:'Montag'}],Michaelibad:[{d:'Dienstag'}],'Muellersches Volksbad':[{d:'Dienstag'},{d:'Freitag',from:'09:00',to:'15:00'}],Nordbad:[{d:'Mittwoch'}],Westbad:[{d:'Mittwoch'}],Suedbad:[{d:'Donnerstag'}]};
 var DAMEN_TXT={Cosimawellenbad:'Mo ganztaegig',Dantebad:'Mo ganztaegig',Michaelibad:'Di ganztaegig','Muellersches Volksbad':'Di ganztaegig, Fr 9-15',Nordbad:'Mi ganztaegig',Westbad:'Mi ganztaegig',Suedbad:'Do ganztaegig','Fresch Sauna':'1. Di/Monat 9-22'};
-var REVISION=[['Dantebad','13.04.2026','30.04.2026'],['Westbad','27.04.2026','31.08.2026'],['Michaelibad','27.04.2026','11.05.2026'],['Suedbad','11.05.2026','24.05.2026'],['Muellersches Volksbad','25.05.2026','08.06.2026'],['Nordbad','08.06.2026','22.06.2026'],['Cosimawellenbad','22.06.2026','06.07.2026']];
+var REVISION=[['Dantebad','13.04.2026','30.04.2026'],['Westbad','27.04.2026','01.09.2026'],['Michaelibad','27.04.2026','11.05.2026'],['Suedbad','11.05.2026','24.05.2026'],['Muellersches Volksbad','25.05.2026','08.06.2026'],['Nordbad','08.06.2026','22.06.2026'],['Cosimawellenbad','22.06.2026','06.07.2026']];
 
 // === STATE ===
 var raw=[];var liveNow=null;var sel='Michaelibad';var exclOn=false;var exclFerien=false;var showBW=true;var showConf=false;var wFilt='all';var weatherMap=null;var FERIEN_DATES=null;var vollAt=70;
@@ -107,6 +108,8 @@ function clr(v){if(v==null||isNaN(v))return'rgba(255,255,255,.04)';var t=Math.ma
 function tc(v){var t=Math.max(10,vollAt);return(v/t)>0.5?'rgba(255,255,255,.95)':'rgba(255,255,255,.8)';}
 function parseDe(s){var p=s.split('.');return new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));}
 function fmtDe(d){return pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.'+d.getFullYear();}
+function cmpDe(a,b){if(!a)return-1;if(!b)return 1;var da=parseDe(a),db=parseDe(b);return da-db;}
+function sortDeDates(arr){return arr.slice().sort(cmpDe);}
 function getFerienDates(){if(FERIEN_DATES)return FERIEN_DATES;FERIEN_DATES={};for(var i=0;i<FERIEN_RANGES.length;i++){var s=parseDe(FERIEN_RANGES[i][0]);var e=parseDe(FERIEN_RANGES[i][1]);for(var d=new Date(s);d<=e;d.setDate(d.getDate()+1))FERIEN_DATES[fmtDe(d)]=true;}return FERIEN_DATES;}
 function addSlots(t,n){var p=t.split(':');var hh=parseInt(p[0]),mm=parseInt(p[1])+n*30;hh+=Math.floor(mm/60);mm=mm%60;return pad(hh)+':'+pad(mm);}
 
@@ -221,7 +224,7 @@ function process(){
   allW.sort(function(a,b){return a.avg-b.avg;});
   var bestW=[];var maxOv=Math.floor(WIN/2);for(var i=0;i<allW.length&&bestW.length<6;i++){var w=allW[i];var tooClose=false;for(var j=0;j<bestW.length;j++){if(bestW[j].di!==w.di)continue;var oS=Math.max(w.ti,bestW[j].ti);var oE=Math.min(w.ti+WIN,bestW[j].ti+WIN);if(oE-oS>maxOv){tooClose=true;break;}}if(!tooClose)bestW.push(w);}
   var bestKey=bestW.length?{day:bestW[0].day,from:bestW[0].ti,to:bestW[0].ti+WIN}:null;
-  var allDt=fd.map(function(r){return exDatum(r[cDt]);}).filter(Boolean).sort();
+  var allDt=sortDeDates(fd.map(function(r){return exDatum(r[cDt]);}).filter(Boolean));
   return{saunas:saunas,hm:hm,bestW:bestW,bestKey:bestKey,damenRules:damenRules,debugFiltered:debugFiltered,stats:{rows:fd.length,from:allDt[0]||'',to:allDt[allDt.length-1]||''}};
 }
 
@@ -242,11 +245,30 @@ function cellH(hm,day,time,dam,open){
   // 3. Open, no data
   if(!c)return'<td class=\'c nodata\'></td>';
   // 4. Open, has data (including 0)
-  var cls='c';if(showConf&&c.n<2)cls+=' low';
+  var cls='c';if(showConf&&c.n<10)cls+=' low';
   return'<td class=\''+cls+'\' style=\'background:'+clr(c.avg)+';color:'+tc(c.avg)+'\' data-d=\''+day+'\' data-t=\''+time+'\' data-a=\''+c.avg+'\' data-mi=\''+c.min+'\' data-mx=\''+c.max+'\' data-n=\''+c.n+'\' id=\'c_'+day+'_'+time.replace(':','')+'\'>'+ c.avg+'</td>';
 }
 
-function getLatest(){if(!raw.length)return[];var r0=raw[0];var cS=fCol(r0,['Sauna']),cDt=fCol(r0,['Datum']),cT=fCol(r0,['Uhrzeit']),cP=fCol(r0,['Personen']),cM=fCol(r0,['Max Kapazitaet']);var lk='',lr=[];raw.forEach(function(row){var dt=exDatum(row[cDt])||'',tm=exTime(row[cT])||'',k=dt+'|'+tm;if(k>lk){lk=k;lr=[row];}else if(k===lk)lr.push(row);});return lr.map(function(row){var p=Number(row[cP])||0;var mx=Number(row[cM])||1;return{name:row[cS],cur:p,max:mx,pct:Math.round(p/mx*100)};}).filter(function(r){return r.name;});}
+function getLatest(){
+  if(!raw.length)return[];
+  var r0=raw[0];var cS=fCol(r0,['Sauna']),cDt=fCol(r0,['Datum']),cT=fCol(r0,['Uhrzeit']),cP=fCol(r0,['Personen']),cM=fCol(r0,['Max Kapazitaet']);
+  // Get latest entry PER sauna
+  var best={};
+  raw.forEach(function(row){
+    var name=row[cS];if(!name)return;
+    var dt=exDatum(row[cDt])||'',tm=exTime(row[cT])||'';
+    if(!best[name]||cmpDe(dt,best[name].dt)>0||(dt===best[name].dt&&tm>best[name].tm)){
+      best[name]={dt:dt,tm:tm,row:row};
+    }
+  });
+  var res=[];
+  for(var name in best){
+    var row=best[name].row;
+    var p=Number(row[cP])||0;var mx=Number(row[cM])||1;
+    res.push({name:name,cur:p,max:mx,pct:Math.round(p/mx*100)});
+  }
+  return res;
+}
 function getLastPerSauna(){
   if(!raw.length)return{};
   var r0=raw[0];var cS=fCol(r0,['Sauna']),cDt=fCol(r0,['Datum']),cT=fCol(r0,['Uhrzeit']);
@@ -255,12 +277,12 @@ function getLastPerSauna(){
     var name=row[cS];if(!name)return;
     var dt=exDatum(row[cDt])||'';
     var tm=exTime(row[cT])||'';
-    var key=dt+'|'+tm;
-    if(!map[name])map[name]={from:dt,to:dt,lastKey:key,lastDt:dt,lastTm:tm,n:0};
+    if(!map[name])map[name]={from:dt,to:dt,lastDt:dt,lastTm:tm,n:0};
     map[name].n++;
-    if(dt<map[name].from)map[name].from=dt;
-    if(key>map[name].lastKey){map[name].lastKey=key;map[name].lastDt=dt;map[name].lastTm=tm;}
-    if(dt>map[name].to)map[name].to=dt;
+    if(cmpDe(dt,map[name].from)<0)map[name].from=dt;
+    if(cmpDe(dt,map[name].to)>0)map[name].to=dt;
+    // Track latest data point by date+time
+    if(cmpDe(dt,map[name].lastDt)>0||(dt===map[name].lastDt&&tm>map[name].lastTm)){map[name].lastDt=dt;map[name].lastTm=tm;}
   });
   return map;
 }
@@ -282,7 +304,7 @@ function render(){
   if(liveNow){for(var i=0;i<liveNow.length;i++){var l=liveNow[i];var f=false;for(var j=0;j<live.length;j++){if(live[j].name===l.name){live[j].cur=l.cur;live[j].max=l.max;live[j].pct=l.pct;live[j].rt=true;f=true;break;}}if(!f)live.push({name:l.name,cur:l.cur,max:l.max,pct:l.pct,rt:true});}}
   if(live.length){live.sort(function(a,b){return a.pct-b.pct;});
     o+='<div class=\'section\'><div class=\'section-label\'>&#x1f680; Jetzt gehen?</div><div class=\'ng\'>';
-    for(var i=0;i<live.length;i++){var s=live[i];var lp=lps[s.name];      var tip=s.rt?'Echtzeit via API':'Letzte Messung';if(lp)tip+=' | Heatmap: '+lp.from+' - '+lp.to+' | Letzter Punkt: '+lp.lastDt+' '+lp.lastTm+' | '+lp.n+' Datenpunkte';
+    for(var i=0;i<live.length;i++){var s=live[i];var lp=lps[s.name];      var tip=s.rt?'Echtzeit via API':'Letzte Messung';if(lp)tip+=' | Heatmap: '+lp.from+' - '+lp.to+' | Letzter Punkt: '+lp.lastDt+' '+lp.lastTm+' ('+lp.lastPers+'/'+lp.lastMax+' = '+lp.lastPct+'%) | '+lp.n+' Datenpunkte';
       o+='<div class=\'nc'+(i===0?' top':'')+(s.name===sel?' sel':'')+'\' onclick=\'pick(this)\' data-name=\''+s.name+'\' data-tip=\''+tip+'\'><div class=\'p\' style=\'color:'+clr(s.pct)+'\'>'+s.pct+'%</div><div class=\'n\'>'+s.name+'</div><div class=\'s\'>'+s.cur+'/'+s.max+(s.rt?' &#x1f7e2;':'')+'</div>'+(i===0?'<div class=\'go\'>GO!</div>':'')+'</div>';}
     o+='</div></div>';}
 
@@ -311,6 +333,7 @@ function render(){
     if(hTxt)o+='<span>&#x1f552; '+hTxt+'</span>';
     if(rev)o+='<span style=\'color:#d29922\'>&#x1f6a7; Revision: '+rev+'</span>';
     if(url)o+='<a href=\''+url+'\' target=\'_blank\' style=\'color:#58a6ff;text-decoration:none\'>&#x1f517; &Ouml;ffnungszeiten &rarr;</a>';
+    if(SWM_NAMES[sel])o+='<a href=\'https://www.swm.de/baeder/saunen-muenchen#auslastung\' target=\'_blank\' style=\'color:#58a6ff;text-decoration:none\'>&#x1f4ca; Live-Auslastung &rarr;</a>';
     o+='</div>';
   }
 
@@ -367,7 +390,7 @@ function bindEvents(d,mobile){
   // Tooltips on cells
   var tp=document.getElementById('tp');var cells=document.querySelectorAll('.c[data-d]');
   for(var i=0;i<cells.length;i++){(function(el){
-    var tipH=function(){var n=parseInt(el.getAttribute('data-n'));return'<b>'+el.getAttribute('data-d')+' '+el.getAttribute('data-t')+'</b>&Oslash; '+el.getAttribute('data-a')+'% &middot; '+el.getAttribute('data-mi')+'&ndash;'+el.getAttribute('data-mx')+'%<br>'+(n<2?'&#x26A0;&#xFE0F; 1 Messpunkt':'&#x2713; '+n+' Messpunkte');};
+    var tipH=function(){var n=parseInt(el.getAttribute('data-n'));return'<b>'+el.getAttribute('data-d')+' '+el.getAttribute('data-t')+'</b>&Oslash; '+el.getAttribute('data-a')+'% &middot; '+el.getAttribute('data-mi')+'&ndash;'+el.getAttribute('data-mx')+'%<br>'+(n<10?'&#x26A0;&#xFE0F; '+n+' Messpunkte':'&#x2713; '+n+' Messpunkte');};
     el.ontouchstart=function(e){e.preventDefault();tp.innerHTML=tipH();var r=el.getBoundingClientRect();tp.style.left=Math.min(r.left,innerWidth-170)+'px';tp.style.top=Math.max(0,r.top-70)+'px';tp.className='tp show';};
     el.onmouseenter=function(e){tp.innerHTML=tipH();tp.style.left=Math.min(e.clientX+12,innerWidth-170)+'px';tp.style.top=(e.clientY-60)+'px';tp.className='tp show';};
     el.onmousemove=function(e){tp.style.left=Math.min(e.clientX+12,innerWidth-170)+'px';tp.style.top=(e.clientY-60)+'px';};
