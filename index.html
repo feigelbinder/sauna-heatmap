@@ -304,7 +304,7 @@ function render(){
   if(liveNow){for(var i=0;i<liveNow.length;i++){var l=liveNow[i];var f=false;for(var j=0;j<live.length;j++){if(live[j].name===l.name){live[j].cur=l.cur;live[j].max=l.max;live[j].pct=l.pct;live[j].rt=true;f=true;break;}}if(!f)live.push({name:l.name,cur:l.cur,max:l.max,pct:l.pct,rt:true});}}
   if(live.length){live.sort(function(a,b){return a.pct-b.pct;});
     o+='<div class=\'section\'><div class=\'section-label\'>&#x1f680; Jetzt gehen?</div><div class=\'ng\'>';
-    for(var i=0;i<live.length;i++){var s=live[i];var lp=lps[s.name];      var tip=s.rt?'Echtzeit via API':'Letzte Messung';if(lp)tip+=' | Heatmap: '+lp.from+' - '+lp.to+' | Letzter Punkt: '+lp.lastDt+' '+lp.lastTm+' ('+lp.lastPers+'/'+lp.lastMax+' = '+lp.lastPct+'%) | '+lp.n+' Datenpunkte';
+    for(var i=0;i<live.length;i++){var s=live[i];var lp=lps[s.name];      var tip=s.rt?'Echtzeit via API':'Letzte Messung';if(lp){tip+=' | Heatmap: '+lp.from+' - '+lp.to;tip+=' | Letzter Punkt: '+lp.lastDt+' '+lp.lastTm;if(lp.lastPers!=null&&lp.lastMax!=null)tip+=' ('+lp.lastPers+'/'+lp.lastMax+' = '+lp.lastPct+'%)';tip+=' | '+lp.n+' Datenpunkte';}
       o+='<div class=\'nc'+(i===0?' top':'')+(s.name===sel?' sel':'')+'\' onclick=\'pick(this)\' data-name=\''+s.name+'\' data-tip=\''+tip+'\'><div class=\'p\' style=\'color:'+clr(s.pct)+'\'>'+s.pct+'%</div><div class=\'n\'>'+s.name+'</div><div class=\'s\'>'+s.cur+'/'+s.max+(s.rt?' &#x1f7e2;':'')+'</div>'+(i===0?'<div class=\'go\'>GO!</div>':'')+'</div>';}
     o+='</div></div>';}
 
