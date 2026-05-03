@@ -133,6 +133,7 @@ function getHoursTxt(sa){var h=SAUNA_HRS[sa];if(!h)return'';if(h.def)return'Mo-S
 function getRevision(sa){for(var i=0;i<REVISION.length;i++){if(REVISION[i][0]===sa)return REVISION[i][1]+' &ndash; '+REVISION[i][2];}return null;}
 
 // === FETCH ===
+var VERSION='v126';
 var LOAD_QUOTES=[
   'Der Aufguss wird vorbereitet... heute Bergamotte.',
   'Der Aufguss wird vorbereitet... heute Blutorange.',
@@ -371,7 +372,7 @@ function render(){
       o+='<div class=\'bi\' data-bw-ti=\''+allWMeta(x)+'\'><div class=\'bi-top\'><div class=\'bi-rank\'>'+med[i]+'</div><div class=\'bi-badge\' style=\'background:'+clr(x.avg)+';color:'+tc(x.avg)+'\'>'+x.avg+'<small>%</small></div></div><div class=\'bi-time\'>'+DS[di]+' '+x.from+' &ndash; '+x.to+'</div><div class=\'bi-range\'>&Oslash; '+x.avg+'% &middot; '+x.min+'&ndash;'+x.max+'%</div><div class=\'bi-bars\' title=\'Auslastung pro 30-Min-Slot\'>'+miniBar(x.profile)+'</div></div>';}
     o+='</div></div>';}
 
-  o+='<div class=\'ft\'>Auslastung = Personen / Max Kapazit&auml;t &middot; Feiertage Bayern 2026 &middot; Daten via Google Sheets + Ticos API</div>';
+  o+='<div class=\'ft\'>Auslastung = Personen / Max Kapazit&auml;t &middot; Feiertage Bayern 2026 &middot; Daten via Google Sheets + Ticos API &middot; '+VERSION+'</div>';
   document.getElementById('a').innerHTML=o;
   bindEvents(d,mobile);
 }
