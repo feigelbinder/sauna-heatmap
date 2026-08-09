@@ -101,22 +101,18 @@ var SWM_NAMES={Cosimawellenbad:1,Dantebad:1,Michaelibad:1,'Muellersches Volksbad
 var DAMEN={Cosimawellenbad:[{d:'Montag'}],Dantebad:[{d:'Montag'}],Michaelibad:[{d:'Dienstag'}],'Muellersches Volksbad':[{d:'Dienstag'},{d:'Freitag',from:'09:00',to:'15:00'}],Nordbad:[{d:'Mittwoch'}],Westbad:[{d:'Mittwoch'}],Suedbad:[{d:'Donnerstag'}]};
 var DAMEN_TXT={Cosimawellenbad:'Mo ganztaegig',Dantebad:'Mo ganztaegig',Michaelibad:'Di ganztaegig','Muellersches Volksbad':'Di ganztaegig, Fr 9-15',Nordbad:'Mi ganztaegig',Westbad:'Mi ganztaegig',Suedbad:'Do ganztaegig','Fresch Sauna':'1. Di/Monat 9-22'};
 var REVISION=[['Dantebad','13.04.2026','30.04.2026'],['Westbad','27.04.2026','01.09.2026'],['Michaelibad','27.04.2026','11.05.2026'],['Suedbad','11.05.2026','24.05.2026'],['Muellersches Volksbad','25.05.2026','08.06.2026'],['Nordbad','08.06.2026','22.06.2026'],['Cosimawellenbad','22.06.2026','06.07.2026']];
-// Zeitraeume mit kaputter Datenquelle: die tote Ticos-API lieferte HTTP 200 mit
-// personCount:0 statt zu scheitern, das Backend hat die Nullen als echte
-// Messungen gespeichert. Format: [Sauna, Von, Bis] - Bis=null heisst 'bis auf
-// Weiteres'. Gefiltert werden NUR Nullwerte im Fenster, echte Messungen laufen
-// durch. Ein zu grosszuegiges Enddatum ist dadurch unkritisch.
-// Backend-Fix ist am 09.08.2026 live gegangen (Nordbad meldet seither wieder
-// echte Werte), deshalb sind die Fenster mit diesem Tag geschlossen. Der
-// 09.08. ist bewusst noch mit drin: an dem Tag stehen Vor- und Nach-Fix-
-// Messungen gemischt im Sheet.
-// Fuer Cosimawellenbad ist das Enddatum wichtig - die Sauna steht auch reell
-// haeufig auf 0 (bestaetigt an der SWM-eigenen Echtzeitanzeige). Das Fenster
-// darf hier nicht offen bleiben, sonst verschwinden echte Nullmessungen mit.
-var BAD_DATA=[['Cosimawellenbad','21.06.2026','09.08.2026'],['Nordbad','07.06.2026','09.08.2026']];
+// Befunde aus cleansing.gs (Spalte 'Qualitaet' im Sheet), die von der
+// Auswertung ausgeschlossen werden. Blockliste, keine Positivliste: frisch
+// erfasste Zeilen haben noch keinen Befund, weil das Cleansing nur nachts
+// laeuft - die sollen sichtbar bleiben statt den laufenden Tag zu leeren.
+//
+// 'AUSSERHALB' steht bewusst NICHT drin. Die Oeffnungszeiten prueft das
+// Frontend selbst, und Messwerte ausserhalb davon sind als graue Outlier-
+// Zellen gewollt sichtbar (siehe cellH).
+var QUAL_BLOCK={TAG_OHNE_BETRIEB:1,SPAET_AUF:1,FRUEH_ZU:1,QUELLE_EINGEFROREN:1,ZU_WENIG_MESSUNGEN:1,UNVOLLSTAENDIG:1};
 
 // === STATE ===
-var raw=[];var liveNow=null;var sel='Michaelibad';var exclOn=false;var exclFerien=false;var showBW=true;var showConf=false;var wFilt='all';var weatherMap=null;var FERIEN_DATES=null;var vollAt=70;
+var raw=[];var liveNow=null;var sel='Michaelibad';var exclOn=false;var exclFerien=false;var showBW=true;var showConf=false;var wFilt='all';var weatherMap=null;var FERIEN_DATES=null;var vollAt=70;var qualOn=true;
 
 // === UTILS ===
 function pad(n){return n<10?'0'+n:''+n;}
@@ -142,16 +138,11 @@ function exDatum(v){
 }
 function fCol(row,names){var ks=Object.keys(row);for(var i=0;i<names.length;i++){if(row[names[i]]!=null)return names[i];}for(var i=0;i<names.length;i++){for(var j=0;j<ks.length;j++){if(ks[j].toLowerCase().replace(/[^a-z0-9]/g,'').indexOf(names[i].toLowerCase().replace(/[^a-z0-9]/g,''))>=0)return ks[j];}}return null;}
 
-function isBadRow(sa,dt,pers){
-  if(pers!==0||!dt)return false;
-  for(var i=0;i<BAD_DATA.length;i++){
-    var b=BAD_DATA[i];
-    if(b[0]!==sa)continue;
-    if(cmpDe(dt,b[1])<0)continue;
-    if(b[2]&&cmpDe(dt,b[2])>0)continue;
-    return true;
-  }
-  return false;
+function isQualBad(row,cQ){
+  if(!qualOn||!cQ)return false;
+  var q=row[cQ];
+  if(q==null||q==='')return false;
+  return !!QUAL_BLOCK[String(q).trim()];
 }
 function isDam(sa,day,time){var dd=DAMEN[sa];if(!dd)return false;for(var i=0;i<dd.length;i++){if(dd[i].d===day){if(!dd[i].from)return true;if(time>=dd[i].from&&time<dd[i].to)return true;}}return false;}
 function isDamDay(sa,day){var dd=DAMEN[sa];if(!dd)return false;for(var i=0;i<dd.length;i++){if(dd[i].d===day)return true;}return false;}
@@ -160,7 +151,7 @@ function getHoursTxt(sa){var h=SAUNA_HRS[sa];if(!h)return'';if(h.def)return'Mo-S
 function getRevision(sa){for(var i=0;i<REVISION.length;i++){if(REVISION[i][0]===sa)return REVISION[i][1]+' &ndash; '+REVISION[i][2];}return null;}
 
 // === FETCH ===
-var VERSION='v133';
+var VERSION='v134';
 var LOAD_QUOTES=[
   'Der Aufguss wird vorbereitet... heute Bergamotte.',
   'Der Aufguss wird vorbereitet... heute Blutorange.',
@@ -230,12 +221,12 @@ function fetchWeather(){return fetch('https://api.open-meteo.com/v1/forecast?lat
 // === PROCESS ===
 function process(){
   if(!raw.length)return{saunas:[],hm:{},bestW:[],bestKey:null,damenRules:[],stats:{}};
-  var r0=raw[0];var cS=fCol(r0,['Sauna']),cD=fCol(r0,['Wochentag']),cT=fCol(r0,['Uhrzeit']),cDt=fCol(r0,['Datum']),cP=fCol(r0,['Personen']),cM=fCol(r0,['Max Kapazitaet']);
+  var r0=raw[0];var cS=fCol(r0,['Sauna']),cD=fCol(r0,['Wochentag']),cT=fCol(r0,['Uhrzeit']),cDt=fCol(r0,['Datum']),cP=fCol(r0,['Personen']),cM=fCol(r0,['Max Kapazitaet']),cQ=fCol(r0,['Qualitaet']);
   var exSet={};if(exclOn){BAYERN.split(',').forEach(function(d){d=d.trim();if(d)exSet[d]=true;});}
   var ferienSet=exclFerien?getFerienDates():{};
   var saunaSet={};raw.forEach(function(row){if(row[cS])saunaSet[row[cS]]=true;});
   var saunas=Object.keys(saunaSet).sort();
-  var debugFiltered={};
+  var debugFiltered={};var qCount={};
   var fd=raw.filter(function(row){
     var dt=cDt?exDatum(row[cDt]):null;
     if(dt){
@@ -243,7 +234,10 @@ function process(){
       if(exSet[dt]){debugFiltered[dt]=true;return false;}
       if(ferienSet[dt]){debugFiltered[dt]=true;return false;}
     }
-    if(isBadRow(row[cS],dt,Number(row[cP])))return false;
+    if(isQualBad(row,cQ)){
+      if(sel==='__all__'||row[cS]===sel){var qk=String(row[cQ]).trim();qCount[qk]=(qCount[qk]||0)+1;}
+      return false;
+    }
     if(sel!=='__all__'&&row[cS]!==sel)return false;
     if(wFilt!=='all'&&weatherMap&&dt){var w=weatherMap[dt];if(w){if(wFilt==='sun'&&w.rain)return false;if(wFilt==='rain'&&!w.rain)return false;}}
     return true;
@@ -256,7 +250,7 @@ function process(){
   var bestW=[];var maxOv=Math.floor(WIN/2);for(var i=0;i<allW.length&&bestW.length<6;i++){var w=allW[i];var tooClose=false;for(var j=0;j<bestW.length;j++){if(bestW[j].di!==w.di)continue;var oS=Math.max(w.ti,bestW[j].ti);var oE=Math.min(w.ti+WIN,bestW[j].ti+WIN);if(oE-oS>maxOv){tooClose=true;break;}}if(!tooClose)bestW.push(w);}
   var bestKey=bestW.length?{day:bestW[0].day,from:bestW[0].ti,to:bestW[0].ti+WIN}:null;
   var allDt=sortDeDates(fd.map(function(r){return exDatum(r[cDt]);}).filter(Boolean));
-  return{saunas:saunas,hm:hm,bestW:bestW,bestKey:bestKey,damenRules:damenRules,debugFiltered:debugFiltered,stats:{rows:fd.length,from:allDt[0]||'',to:allDt[allDt.length-1]||''}};
+  return{saunas:saunas,hm:hm,bestW:bestW,bestKey:bestKey,damenRules:damenRules,debugFiltered:debugFiltered,qCount:qCount,stats:{rows:fd.length,from:allDt[0]||'',to:allDt[allDt.length-1]||''}};
 }
 
 // === RENDER HELPERS ===
@@ -282,13 +276,13 @@ function cellH(hm,day,time,dam,open){
 
 function getLatest(){
   if(!raw.length)return[];
-  var r0=raw[0];var cS=fCol(r0,['Sauna']),cDt=fCol(r0,['Datum']),cT=fCol(r0,['Uhrzeit']),cP=fCol(r0,['Personen']),cM=fCol(r0,['Max Kapazitaet']);
+  var r0=raw[0];var cS=fCol(r0,['Sauna']),cDt=fCol(r0,['Datum']),cT=fCol(r0,['Uhrzeit']),cP=fCol(r0,['Personen']),cM=fCol(r0,['Max Kapazitaet']),cQ=fCol(r0,['Qualitaet']);
   // Get latest entry PER sauna
   var best={};
   raw.forEach(function(row){
     var name=row[cS];if(!name)return;
     var dt=exDatum(row[cDt])||'',tm=exTime(row[cT])||'';
-    if(isBadRow(name,dt,Number(row[cP])))return;
+    if(isQualBad(row,cQ))return;
     if(!best[name]||cmpDe(dt,best[name].dt)>0||(dt===best[name].dt&&tm>best[name].tm)){
       best[name]={dt:dt,tm:tm,row:row};
     }
@@ -303,13 +297,13 @@ function getLatest(){
 }
 function getLastPerSauna(){
   if(!raw.length)return{};
-  var r0=raw[0];var cS=fCol(r0,['Sauna']),cDt=fCol(r0,['Datum']),cT=fCol(r0,['Uhrzeit']),cP=fCol(r0,['Personen']);
+  var r0=raw[0];var cS=fCol(r0,['Sauna']),cDt=fCol(r0,['Datum']),cT=fCol(r0,['Uhrzeit']),cQ=fCol(r0,['Qualitaet']);
   var map={};
   raw.forEach(function(row){
     var name=row[cS];if(!name)return;
     var dt=exDatum(row[cDt])||'';
     var tm=exTime(row[cT])||'';
-    if(isBadRow(name,dt,Number(row[cP])))return;
+    if(isQualBad(row,cQ))return;
     if(!map[name])map[name]={from:dt,to:dt,lastDt:dt,lastTm:tm,n:0};
     map[name].n++;
     if(cmpDe(dt,map[name].from)<0)map[name].from=dt;
@@ -347,6 +341,7 @@ function render(){
   o+='<div class=\'tog'+(exclFerien?' on':'')+'\' id=\'tFerien\'><span class=\'dot\'></span>Schulferien raus</div>';
   o+='<div class=\'tog'+(showBW?' on':'')+'\' id=\'tBW\'><span class=\'dot\'></span>&#x2B50; Top Fenster</div>';
   o+='<div class=\'tog'+(showConf?' on':'')+'\' id=\'tConf\'><span class=\'dot\'></span>Konfidenz</div>';
+  o+='<div class=\'tog'+(qualOn?' on':'')+'\' id=\'tQual\' title=\'Zeilen ausblenden, die cleansing.gs als fehlerhaft markiert hat\'><span class=\'dot\'></span>&#x1f9f9; Nur gepruefte Daten</div>';
   if(hasW){o+='<div class=\'pill-g\'><button class=\'pill'+(wFilt==='all'?' act':'')+'\' data-w=\'all\'>Alle</button><button class=\'pill'+(wFilt==='sun'?' act':'')+'\' data-w=\'sun\'>&#x2600;&#xFE0F;</button><button class=\'pill'+(wFilt==='rain'?' act':'')+'\' data-w=\'rain\'>&#x1f327;&#xFE0F;</button></div>';}
   o+='</div>';
   // Debug: show which dates were filtered
@@ -355,6 +350,13 @@ function render(){
     if(fKeys.length){
       o+='<div style=\'font-size:9px;color:#8b949e;margin-bottom:8px\'>&#x274C; Ausgeblendet: '+fKeys.join(', ')+'</div>';
     }
+  }
+  // Welche Qualitaetsbefunde wurden ausgefiltert?
+  var qKeys=Object.keys(d.qCount||{});
+  if(qualOn&&qKeys.length){
+    qKeys.sort(function(a,b){return d.qCount[b]-d.qCount[a];});
+    var qTxt=[];for(var qi=0;qi<qKeys.length;qi++)qTxt.push(qKeys[qi].toLowerCase().replace(/_/g,' ')+' '+d.qCount[qKeys[qi]]);
+    o+='<div style=\'font-size:9px;color:#8b949e;margin-bottom:8px\'>&#x1f9f9; Aussortiert: '+qTxt.join(' &middot; ')+'</div>';
   }
 
   // Sauna info
@@ -417,6 +419,7 @@ function bindEvents(d,mobile){
   document.getElementById('tFerien').onclick=function(){exclFerien=!exclFerien;render();};
   document.getElementById('tBW').onclick=function(){showBW=!showBW;render();};
   document.getElementById('tConf').onclick=function(){showConf=!showConf;render();};
+  document.getElementById('tQual').onclick=function(){qualOn=!qualOn;render();};
   document.getElementById('vollSlider').oninput=function(e){vollAt=parseInt(e.target.value);document.getElementById('vollLabel').textContent=vollAt+'%';render();};
   var pills=document.querySelectorAll('.pill');for(var i=0;i<pills.length;i++){(function(p){p.onclick=function(){wFilt=p.getAttribute('data-w');render();};})(pills[i]);}
 

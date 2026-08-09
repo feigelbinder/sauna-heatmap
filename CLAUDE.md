@@ -57,7 +57,7 @@ Backend und Frontend nutzen inzwischen **dieselbe** SWM-Quelle, jeweils mit eige
 
 Daraus die Regel: **keine Datenquelle als Fallback behalten, die 0 zurückgibt statt zu scheitern.** Lieber `NO_DATA` loggen — dann greift auch die Zero-Streak-Erkennung. `SWM_TICOS_API` steht nur noch für `testSWM()` im Script.
 
-Die ~5100 bereits gespeicherten Nullzeilen stehen weiterhin im Sheet und werden im Frontend über die Konstante `BAD_DATA` ausgeblendet (`[Sauna, Von, Bis]`, `Bis = null` heißt „bis auf Weiteres"). `isBadRow()` verwirft dabei **nur Nullwerte innerhalb des Fensters** — echte Messungen laufen durch. Dadurch ist ein zu großzügiges Enddatum unkritisch, und die Einträge können nach dem Backend-Deploy einfach mit dem Deploy-Datum geschlossen werden. Der Filter greift an drei Stellen: `process()`, `getLatest()`, `getLastPerSauna()` — wer eine vierte Auswertung über `raw` baut, muss ihn dort mit einbauen.
+Die bereits gespeicherten Nullzeilen stehen weiterhin im Sheet und werden über die Qualitäts-Spalte aussortiert (siehe unten). Eine frühere Zwischenlösung mit fest verdrahteten Datumsfenstern (`BAD_DATA` / `isBadRow()`) wurde damit abgelöst und entfernt.
 
 ---
 
@@ -78,6 +78,25 @@ Die **Spaltenreihenfolge ist im Backend fest verdrahtet**: `checkZeroStreaks()` 
 **Zweites Sheet "Health Log"** protokolliert alle Fehler und Anomalien.
 
 **Test-Funktionen:** `testSWM()` (zeigt pro Sauna, ob REST oder Ticos greift), `testPhoenixbad()`, `testFresch()`, `debugFreschAPI()`, `testClaudius()`, `testAlert()`, `removeTriggers()`
+
+## Data Cleansing (`cleansing.gs`)
+
+Eigene Script-Datei im selben Apps-Script-Projekt, täglicher Trigger um 03:00. Sie **löscht nichts**, sondern schreibt eine Spalte `Qualitaet` (Spalte J, ans Ende) mit einem Befund pro Zeile. Dadurch ist der Lauf idempotent, Schwellen bleiben nachträglich änderbar, und die Unterscheidung zwischen „Sauna war leer" und „Quelle war kaputt" bleibt erhalten.
+
+| Befund | Bedeutung |
+|---|---|
+| `OK` | unauffällig |
+| `AUSSERHALB` | außerhalb der Öffnungszeit laut `isSaunaOpen()`, inkl. Revision |
+| `TAG_OHNE_BETRIEB` | ganzer Tag während der Öffnungszeit auf 0 |
+| `SPAET_AUF` / `FRUEH_ZU` | Nullserie ≥ 3 Slots am Tagesrand, dazwischen echter Betrieb |
+| `QUELLE_EINGEFROREN` | Quelle lieferte Cache statt Echtzeit |
+| `ZU_WENIG_MESSUNGEN` | zu wenige Messungen am Tag für eine Beurteilung |
+
+**Die Frozen-Erkennung ist der heikle Teil.** Ein konstanter Wert allein ist *kein* Fehler — eine ruhige Sauna steht stundenlang bei 2 Gästen, und die Claudius-Ampel kennt nur 11 Stufen. Eine naive Regel hätte 65 % der Claudius-Zeilen verworfen. Ausschlaggebend ist deshalb:
+- **bei SWM die Gleichzeitigkeit** über mehrere Saunen desselben Betreibers. Am 26.07.2026 froren alle vier gleichzeitig ein und tauten im selben Slot wieder auf — das ist eindeutig quellenseitig.
+- **bei Phoenixbad, Fresch und Claudius** die Werthöhe gegenüber dem Sauna-Median, weil sie je die einzige Sauna ihres Betreibers sind und die Gleichzeitigkeitsprüfung dort nie greifen kann. Damit werden genau die Phoenixbad-Zeilen vom 01.–08.04.2026 erkannt, also die WP-Rocket-Ära vor der AJAX-Umstellung.
+
+Bekannte Lücke: die Klassifikation prüft die Öffnungszeit zuerst. Defekte Messwerte außerhalb der Öffnungszeit bekommen deshalb `AUSSERHALB` statt eines Defektbefunds und bleiben als graue Outlier-Zellen sichtbar.
 
 ## Bedingtes Fetchen
 
@@ -130,6 +149,7 @@ Es gibt keinen Lint- und keinen Testlauf. Die einzige Verifikation ist: `VERSION
 - **Empfehlungsfenster:** `WIN = 8` Slots = 4 Stunden. Die Top-6-Vorschläge dürfen sich maximal zur Hälfte überlappen (`maxOv = WIN/2`), sonst kommen sechs Varianten desselben Zeitfensters raus
 - **Farbskala:** relativ zu `vollAt` (Default 70, per Slider 20–100). Bei `vollAt = 70` ist eine Zelle mit 70% bereits voll rot — nicht linear auf 100% skaliert, weil 70% praktisch schon zu voll ist
 - **Konfidenz:** unter 10 Messpunkten pro Zelle wird gestrichelt markiert (nur wenn Toggle an)
+- **Qualitätsfilter:** `QUAL_BLOCK` listet die Befunde aus `cleansing.gs`, die ausgeschlossen werden; `isQualBad()` wertet sie aus. Das ist bewusst eine **Blockliste, keine Positivliste** — frisch erfasste Zeilen haben noch keinen Befund, weil das Cleansing nur nachts läuft, und dürfen nicht den laufenden Tag leeren. `AUSSERHALB` steht bewusst nicht drin: Öffnungszeiten prüft das Frontend selbst, und Werte außerhalb sind als graue Outlier gewollt. Der Filter greift an drei Stellen — `process()`, `getLatest()`, `getLastPerSauna()`; wer eine vierte Auswertung über `raw` baut, muss ihn dort mitnehmen. Abschaltbar über den Toggle „Nur geprüfte Daten"
 - **Wetter:** über 2 mm Tagesniederschlag gilt als Regentag. Tage ohne Wetterdaten werden nicht ausgefiltert
 - **Layout:** unter 640px wird die Heatmap transponiert — Wochentage als Spalten, Zeiten als Zeilen. Tooltips laufen dort über `touchstart` statt Hover
 
