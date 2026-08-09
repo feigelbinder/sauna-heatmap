@@ -84,8 +84,11 @@ if(window.location.hash!=='#sauna2026'){document.getElementById('a').innerHTML='
 
 // === CONFIG ===
 var API='https://script.google.com/macros/s/AKfycbxpjTpkOgwSW_b6Jrk0CwokHlG6YYy9JMcEBlqPsr2_D-LY2fLDOxSuw14SACfdRaY/exec';
-var TICOS='https://counter.ticos-systems.cloud/api/gates/counter';
-var SWM=[{id:'30191',n:'Cosimawellenbad'},{id:'30200',n:'Dantebad'},{id:'30203',n:'Michaelibad'},{id:'30204',n:'Muellersches Volksbad'},{id:'30185',n:'Nordbad'},{id:'30188',n:'Suedbad'},{id:'30207',n:'Westbad'}];
+// SWM-Echtzeit: ein Call fuer alle Baeder, Zuordnung per area_id.
+// Die alte Ticos-API ist tot - sie liefert weiterhin HTTP 200 mit personCount:0
+// fuer jede Sauna, weshalb alle Live-Kacheln faelschlich auf 0% standen.
+var SWM_REST='https://www.swm.de/.rest/bath/visitorCount';
+var SWM=[{a:75,n:'Cosimawellenbad'},{a:33,n:'Dantebad'},{a:9,n:'Michaelibad'},{a:87,n:'Muellersches Volksbad'},{a:63,n:'Nordbad'},{a:81,n:'Suedbad'},{a:18,n:'Westbad'}];
 var DAYS=['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
 var DS=['Mo','Di','Mi','Do','Fr','Sa','So'];
 var TS=[];for(var h=7;h<24;h++){TS.push(pad(h)+':00');TS.push(pad(h)+':30');}
@@ -98,6 +101,16 @@ var SWM_NAMES={Cosimawellenbad:1,Dantebad:1,Michaelibad:1,'Muellersches Volksbad
 var DAMEN={Cosimawellenbad:[{d:'Montag'}],Dantebad:[{d:'Montag'}],Michaelibad:[{d:'Dienstag'}],'Muellersches Volksbad':[{d:'Dienstag'},{d:'Freitag',from:'09:00',to:'15:00'}],Nordbad:[{d:'Mittwoch'}],Westbad:[{d:'Mittwoch'}],Suedbad:[{d:'Donnerstag'}]};
 var DAMEN_TXT={Cosimawellenbad:'Mo ganztaegig',Dantebad:'Mo ganztaegig',Michaelibad:'Di ganztaegig','Muellersches Volksbad':'Di ganztaegig, Fr 9-15',Nordbad:'Mi ganztaegig',Westbad:'Mi ganztaegig',Suedbad:'Do ganztaegig','Fresch Sauna':'1. Di/Monat 9-22'};
 var REVISION=[['Dantebad','13.04.2026','30.04.2026'],['Westbad','27.04.2026','01.09.2026'],['Michaelibad','27.04.2026','11.05.2026'],['Suedbad','11.05.2026','24.05.2026'],['Muellersches Volksbad','25.05.2026','08.06.2026'],['Nordbad','08.06.2026','22.06.2026'],['Cosimawellenbad','22.06.2026','06.07.2026']];
+// Zeitraeume mit kaputter Datenquelle: die tote Ticos-API lieferte HTTP 200 mit
+// personCount:0 statt zu scheitern, das Backend hat die Nullen als echte
+// Messungen gespeichert. Format: [Sauna, Von, Bis] - Bis=null heisst 'bis auf
+// Weiteres'. Gefiltert werden NUR Nullwerte im Fenster, echte Messungen laufen
+// durch. Ein zu grosszuegiges Enddatum ist dadurch unkritisch.
+// Nach dem Deploy des Backend-Fixes das jeweilige Bis-Datum setzen.
+// WICHTIG fuer Cosimawellenbad: die Sauna steht auch reell haeufig auf 0
+// (bestaetigt an der SWM-eigenen Echtzeitanzeige). Das Bis-Datum hier also
+// zeitnah nach dem Deploy setzen, sonst verschwinden echte Nullmessungen mit.
+var BAD_DATA=[['Cosimawellenbad','21.06.2026',null],['Nordbad','07.06.2026',null]];
 
 // === STATE ===
 var raw=[];var liveNow=null;var sel='Michaelibad';var exclOn=false;var exclFerien=false;var showBW=true;var showConf=false;var wFilt='all';var weatherMap=null;var FERIEN_DATES=null;var vollAt=70;
@@ -126,6 +139,17 @@ function exDatum(v){
 }
 function fCol(row,names){var ks=Object.keys(row);for(var i=0;i<names.length;i++){if(row[names[i]]!=null)return names[i];}for(var i=0;i<names.length;i++){for(var j=0;j<ks.length;j++){if(ks[j].toLowerCase().replace(/[^a-z0-9]/g,'').indexOf(names[i].toLowerCase().replace(/[^a-z0-9]/g,''))>=0)return ks[j];}}return null;}
 
+function isBadRow(sa,dt,pers){
+  if(pers!==0||!dt)return false;
+  for(var i=0;i<BAD_DATA.length;i++){
+    var b=BAD_DATA[i];
+    if(b[0]!==sa)continue;
+    if(cmpDe(dt,b[1])<0)continue;
+    if(b[2]&&cmpDe(dt,b[2])>0)continue;
+    return true;
+  }
+  return false;
+}
 function isDam(sa,day,time){var dd=DAMEN[sa];if(!dd)return false;for(var i=0;i<dd.length;i++){if(dd[i].d===day){if(!dd[i].from)return true;if(time>=dd[i].from&&time<dd[i].to)return true;}}return false;}
 function isDamDay(sa,day){var dd=DAMEN[sa];if(!dd)return false;for(var i=0;i<dd.length;i++){if(dd[i].d===day)return true;}return false;}
 function saunaIsOpen(sa,day,time){var h=SAUNA_HRS[sa];if(!h)return true;var hrs=h[day]||h.def;if(!hrs)return true;return time>=hrs[0]&&time<hrs[1];}
@@ -133,7 +157,7 @@ function getHoursTxt(sa){var h=SAUNA_HRS[sa];if(!h)return'';if(h.def)return'Mo-S
 function getRevision(sa){for(var i=0;i<REVISION.length;i++){if(REVISION[i][0]===sa)return REVISION[i][1]+' &ndash; '+REVISION[i][2];}return null;}
 
 // === FETCH ===
-var VERSION='v130';
+var VERSION='v132';
 var LOAD_QUOTES=[
   'Der Aufguss wird vorbereitet... heute Bergamotte.',
   'Der Aufguss wird vorbereitet... heute Blutorange.',
@@ -193,7 +217,11 @@ function fetchAll(){
       +'</div></details></div>';
   });
 }
-function fetchLive(){return Promise.all(SWM.map(function(s){return fetch(TICOS+'?organizationUnitIds='+s.id).then(function(r){return r.json();}).then(function(d){if(d&&d[0])return{name:s.n,cur:d[0].personCount,max:d[0].maxPersonCount,pct:Math.round(d[0].personCount/d[0].maxPersonCount*100)};return null;}).catch(function(){return null;});})).then(function(r){liveNow=r.filter(Boolean);if(!liveNow.length)liveNow=null;});}
+function fetchLive(){return fetch(SWM_REST).then(function(r){return r.json();}).then(function(d){
+  var m={};(d&&d.data||[]).forEach(function(loc){(loc.area_list||[]).forEach(function(a){m[a.area_id]={cur:a.customer_amount,max:a.customer_amount_max};});});
+  liveNow=SWM.map(function(s){var v=m[s.a];if(!v||v.max==null||v.max<=0||v.cur==null)return null;return{name:s.n,cur:v.cur,max:v.max,pct:Math.round(v.cur/v.max*100)};}).filter(Boolean);
+  if(!liveNow.length)liveNow=null;
+}).catch(function(){liveNow=null;});}
 function fetchWeather(){return fetch('https://api.open-meteo.com/v1/forecast?latitude=48.14&longitude=11.58&daily=precipitation_sum&timezone=Europe/Berlin&past_days=30&forecast_days=2').then(function(r){return r.json();}).then(function(d){if(!d.daily)return;weatherMap={};d.daily.time.forEach(function(t,i){var p=t.split('-');if(p.length===3){var k=p[2]+'.'+p[1]+'.'+p[0];var pr=d.daily.precipitation_sum[i];weatherMap[k]={rain:pr!=null&&pr>2};}});}).catch(function(){weatherMap=null;});}
 
 // === PROCESS ===
@@ -206,16 +234,15 @@ function process(){
   var saunas=Object.keys(saunaSet).sort();
   var debugFiltered={};
   var fd=raw.filter(function(row){
-    if(cDt){
-      var dt=exDatum(row[cDt]);
-      if(dt){
-        dt=dt.trim();
-        if(exSet[dt]){debugFiltered[dt]=true;return false;}
-        if(ferienSet[dt]){debugFiltered[dt]=true;return false;}
-      }
+    var dt=cDt?exDatum(row[cDt]):null;
+    if(dt){
+      dt=dt.trim();
+      if(exSet[dt]){debugFiltered[dt]=true;return false;}
+      if(ferienSet[dt]){debugFiltered[dt]=true;return false;}
     }
+    if(isBadRow(row[cS],dt,Number(row[cP])))return false;
     if(sel!=='__all__'&&row[cS]!==sel)return false;
-    if(wFilt!=='all'&&weatherMap&&cDt){var dt=exDatum(row[cDt]);var w=dt?weatherMap[dt]:null;if(w){if(wFilt==='sun'&&w.rain)return false;if(wFilt==='rain'&&!w.rain)return false;}}
+    if(wFilt!=='all'&&weatherMap&&dt){var w=weatherMap[dt];if(w){if(wFilt==='sun'&&w.rain)return false;if(wFilt==='rain'&&!w.rain)return false;}}
     return true;
   });
   var grp={};fd.forEach(function(row){var day=exDay(cD?row[cD]:null),time=exTime(cT?row[cT]:null);if(!day||!time)return;var pers=Number(row[cP]);var maxC=Number(row[cM]);if(isNaN(pers)||isNaN(maxC)||maxC<=0)return;var pct=Math.round(pers/maxC*100);var k=day+'|'+time;if(!grp[k])grp[k]=[];grp[k].push(pct);});
@@ -258,6 +285,7 @@ function getLatest(){
   raw.forEach(function(row){
     var name=row[cS];if(!name)return;
     var dt=exDatum(row[cDt])||'',tm=exTime(row[cT])||'';
+    if(isBadRow(name,dt,Number(row[cP])))return;
     if(!best[name]||cmpDe(dt,best[name].dt)>0||(dt===best[name].dt&&tm>best[name].tm)){
       best[name]={dt:dt,tm:tm,row:row};
     }
@@ -272,12 +300,13 @@ function getLatest(){
 }
 function getLastPerSauna(){
   if(!raw.length)return{};
-  var r0=raw[0];var cS=fCol(r0,['Sauna']),cDt=fCol(r0,['Datum']),cT=fCol(r0,['Uhrzeit']);
+  var r0=raw[0];var cS=fCol(r0,['Sauna']),cDt=fCol(r0,['Datum']),cT=fCol(r0,['Uhrzeit']),cP=fCol(r0,['Personen']);
   var map={};
   raw.forEach(function(row){
     var name=row[cS];if(!name)return;
     var dt=exDatum(row[cDt])||'';
     var tm=exTime(row[cT])||'';
+    if(isBadRow(name,dt,Number(row[cP])))return;
     if(!map[name])map[name]={from:dt,to:dt,lastDt:dt,lastTm:tm,n:0};
     map[name].n++;
     if(cmpDe(dt,map[name].from)<0)map[name].from=dt;
