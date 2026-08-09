@@ -106,11 +106,14 @@ var REVISION=[['Dantebad','13.04.2026','30.04.2026'],['Westbad','27.04.2026','01
 // Messungen gespeichert. Format: [Sauna, Von, Bis] - Bis=null heisst 'bis auf
 // Weiteres'. Gefiltert werden NUR Nullwerte im Fenster, echte Messungen laufen
 // durch. Ein zu grosszuegiges Enddatum ist dadurch unkritisch.
-// Nach dem Deploy des Backend-Fixes das jeweilige Bis-Datum setzen.
-// WICHTIG fuer Cosimawellenbad: die Sauna steht auch reell haeufig auf 0
-// (bestaetigt an der SWM-eigenen Echtzeitanzeige). Das Bis-Datum hier also
-// zeitnah nach dem Deploy setzen, sonst verschwinden echte Nullmessungen mit.
-var BAD_DATA=[['Cosimawellenbad','21.06.2026',null],['Nordbad','07.06.2026',null]];
+// Backend-Fix ist am 09.08.2026 live gegangen (Nordbad meldet seither wieder
+// echte Werte), deshalb sind die Fenster mit diesem Tag geschlossen. Der
+// 09.08. ist bewusst noch mit drin: an dem Tag stehen Vor- und Nach-Fix-
+// Messungen gemischt im Sheet.
+// Fuer Cosimawellenbad ist das Enddatum wichtig - die Sauna steht auch reell
+// haeufig auf 0 (bestaetigt an der SWM-eigenen Echtzeitanzeige). Das Fenster
+// darf hier nicht offen bleiben, sonst verschwinden echte Nullmessungen mit.
+var BAD_DATA=[['Cosimawellenbad','21.06.2026','09.08.2026'],['Nordbad','07.06.2026','09.08.2026']];
 
 // === STATE ===
 var raw=[];var liveNow=null;var sel='Michaelibad';var exclOn=false;var exclFerien=false;var showBW=true;var showConf=false;var wFilt='all';var weatherMap=null;var FERIEN_DATES=null;var vollAt=70;
@@ -157,7 +160,7 @@ function getHoursTxt(sa){var h=SAUNA_HRS[sa];if(!h)return'';if(h.def)return'Mo-S
 function getRevision(sa){for(var i=0;i<REVISION.length;i++){if(REVISION[i][0]===sa)return REVISION[i][1]+' &ndash; '+REVISION[i][2];}return null;}
 
 // === FETCH ===
-var VERSION='v132';
+var VERSION='v133';
 var LOAD_QUOTES=[
   'Der Aufguss wird vorbereitet... heute Bergamotte.',
   'Der Aufguss wird vorbereitet... heute Blutorange.',
