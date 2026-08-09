@@ -29,8 +29,9 @@ Phoenixbad, Fresch und Claudius haben keine browserfähige Echtzeit-Quelle — d
 | Datei | Ort | Rolle |
 |---|---|---|
 | `index.html` | dieses Repo | Komplettes Frontend, eine selbstständige Datei |
-| `apps-script.gs` | dieses Repo (Kopie) | Referenzkopie des Backends |
-| — | Google Apps Script | Backend — Datensammler, Alerting, `doGet()`; das **laufende** Original |
+| `apps-script.gs` | dieses Repo (Kopie) | Referenzkopie des Backends — Datensammler, Alerting, `doGet()` |
+| `cleansing.gs` | dieses Repo (Kopie) | Referenzkopie des Data Cleansing |
+| — | Google Apps Script | Die **laufenden** Originale beider `.gs`-Dateien, gleich benannt |
 | `CLAUDE.md` | dieses Repo | Diese Datei |
 
 `apps-script.gs` ist **nur eine Kopie**. Das laufende Backend lebt im Apps-Script-Projekt; Änderungen hier müssen manuell dorthin übertragen und neu deployed werden — und umgekehrt kann das Original der Kopie vorausgelaufen sein. Vor Backend-Arbeit prüfen, ob die Kopie noch aktuell ist. Konkret bekannt: `ALERT_EMAIL` steht in der Kopie auf dem Platzhalter `DEINE_EMAIL@gmail.com`, im Original nicht.
@@ -209,7 +210,12 @@ Es gibt keine Testsuite. Externe Fetches sind in Sandbox-Umgebungen durch CSP ge
 
 # Konventionen
 
-- **`VERSION`-Konstante** oben in `index.html` bei jeder Änderung hochzählen — wird in der Fußzeile angezeigt und ist die einzige Möglichkeit zu prüfen, ob GitHub Pages schon die neue Fassung ausliefert
+- **Versionskonstanten bei jeder Änderung hochzählen.** Jede der drei Dateien hat eine, weil man bei keiner von außen sieht, welcher Stand tatsächlich läuft:
+  - `VERSION` in `index.html` → Fußzeile; zeigt, ob GitHub Pages schon die neue Fassung ausliefert
+  - `TRACKER_VERSION` in `apps-script.gs` → Abschlusszeile jedes `fetchAll()`-Laufs
+  - `CLEANSING_VERSION` in `cleansing.gs` → jede Logzeile und jeder Health-Log-Eintrag
+  
+  Bei den `.gs`-Dateien ist das die einzige Möglichkeit, eine Drift zwischen Repo-Kopie und Apps-Script-Projekt zu erkennen: `showVersions()` im Editor ausführen und mit dem Repo vergleichen. Stimmen die Nummern nicht überein, ist eine Seite nicht nachgezogen.
 - Domänenwissen als Konstanten-Objekte oben im Script halten, nicht in die Renderlogik streuen
 - Deutsche UI-Texte, deutsche Datumsformate
 

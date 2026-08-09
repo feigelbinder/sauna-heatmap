@@ -120,6 +120,12 @@ function debugFreschAPI() {
 // Zum Stoppen: "removeTriggers" ausfuehren
 // ============================================
 
+// Bei jeder Aenderung hochzaehlen. Die Version steht in der Abschlusszeile
+// jedes fetchAll()-Laufs -- nur so laesst sich pruefen, ob die Fassung im
+// Apps-Script-Projekt noch der Kopie im Repo entspricht. showVersions() aus
+// cleansing.gs zeigt beide auf einmal.
+var TRACKER_VERSION = 'v3.1';
+
 var ALERT_EMAIL = "DEINE_EMAIL@gmail.com";  // <-- ANPASSEN!
 
 var SHEET_NAME = "Saunen Auslastung";
@@ -393,7 +399,8 @@ function fetchAll() {
     logIssues(now, issues);
   }
 
-  Logger.log(rows.length + "/" + (SWM_SAUNAS.length + 3) +
+  Logger.log("apps-script.gs " + TRACKER_VERSION + " -- " +
+             rows.length + "/" + (SWM_SAUNAS.length + 3) +
              " Saunen erfasst, " + issues.length + " Issues | " +
              dateStr + " " + time);
 }
