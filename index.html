@@ -95,8 +95,10 @@ var TS=[];for(var h=7;h<24;h++){TS.push(pad(h)+':00');TS.push(pad(h)+':30');}
 var BAYERN='01.01.2026,06.01.2026,03.04.2026,06.04.2026,01.05.2026,14.05.2026,25.05.2026,04.06.2026,15.08.2026,03.10.2026,01.11.2026,25.12.2026,26.12.2026';
 var FERIEN_RANGES=[['16.02.2026','20.02.2026'],['30.03.2026','10.04.2026'],['26.05.2026','05.06.2026'],['30.07.2026','14.09.2026'],['02.11.2026','06.11.2026'],['23.12.2026','07.01.2027']];
 var WIN=8;
-var SAUNA_HRS={Cosimawellenbad:{def:['09:00','23:00']},Dantebad:{def:['07:30','23:00']},Michaelibad:{def:['07:30','23:00']},'Muellersches Volksbad':{def:['09:00','23:00']},Nordbad:{def:['07:30','23:00']},Suedbad:{def:['09:00','23:00']},Westbad:{def:['07:30','23:00']},'Phoenixbad Sauna':{Montag:['09:00','23:00'],Dienstag:['09:00','23:00'],Mittwoch:['09:00','23:00'],Donnerstag:['09:00','23:00'],Freitag:['09:00','23:30'],Samstag:['08:00','23:30'],Sonntag:['08:00','23:00']},'Fresch Sauna':{def:['09:00','22:00']}};
-var SAUNA_URL={Cosimawellenbad:'https://www.swm.de/baeder/saunen-muenchen#zeiten',Dantebad:'https://www.swm.de/baeder/saunen-muenchen#zeiten',Michaelibad:'https://www.swm.de/baeder/saunen-muenchen#zeiten','Muellersches Volksbad':'https://www.swm.de/baeder/saunen-muenchen#zeiten',Nordbad:'https://www.swm.de/baeder/saunen-muenchen#zeiten',Suedbad:'https://www.swm.de/baeder/saunen-muenchen#zeiten',Westbad:'https://www.swm.de/baeder/saunen-muenchen#zeiten','Phoenixbad Sauna':'https://phoenixbad.de/oeffnungszeiten-preise/','Fresch Sauna':'https://www.fresch-freising.de/oeffnungszeiten-preise'};
+var SAUNA_HRS={Cosimawellenbad:{def:['09:00','23:00']},Dantebad:{def:['07:30','23:00']},Michaelibad:{def:['07:30','23:00']},'Muellersches Volksbad':{def:['09:00','23:00']},Nordbad:{def:['07:30','23:00']},Suedbad:{def:['09:00','23:00']},Westbad:{def:['07:30','23:00']},'Phoenixbad Sauna':{Montag:['09:00','23:00'],Dienstag:['09:00','23:00'],Mittwoch:['09:00','23:00'],Donnerstag:['09:00','23:00'],Freitag:['09:00','23:30'],Samstag:['08:00','23:30'],Sonntag:['08:00','23:00']},'Fresch Sauna':{def:['09:00','22:00']},'Claudius Therme':{def:['09:00','24:00']}};
+// Zusatzhinweise, die keine Filterwirkung haben, aber fuer die Planung zaehlen
+var SAUNA_NOTE={'Claudius Therme':'Letzter Einlass 22:30'};
+var SAUNA_URL={Cosimawellenbad:'https://www.swm.de/baeder/saunen-muenchen#zeiten',Dantebad:'https://www.swm.de/baeder/saunen-muenchen#zeiten',Michaelibad:'https://www.swm.de/baeder/saunen-muenchen#zeiten','Muellersches Volksbad':'https://www.swm.de/baeder/saunen-muenchen#zeiten',Nordbad:'https://www.swm.de/baeder/saunen-muenchen#zeiten',Suedbad:'https://www.swm.de/baeder/saunen-muenchen#zeiten',Westbad:'https://www.swm.de/baeder/saunen-muenchen#zeiten','Phoenixbad Sauna':'https://phoenixbad.de/oeffnungszeiten-preise/','Fresch Sauna':'https://www.fresch-freising.de/oeffnungszeiten-preise','Claudius Therme':'https://www.claudius-therme.de/sauna/'};
 var SWM_NAMES={Cosimawellenbad:1,Dantebad:1,Michaelibad:1,'Muellersches Volksbad':1,Nordbad:1,Suedbad:1,Westbad:1};
 var DAMEN={Cosimawellenbad:[{d:'Montag'}],Dantebad:[{d:'Montag'}],Michaelibad:[{d:'Dienstag'}],'Muellersches Volksbad':[{d:'Dienstag'},{d:'Freitag',from:'09:00',to:'15:00'}],Nordbad:[{d:'Mittwoch'}],Westbad:[{d:'Mittwoch'}],Suedbad:[{d:'Donnerstag'}]};
 var DAMEN_TXT={Cosimawellenbad:'Mo ganztaegig',Dantebad:'Mo ganztaegig',Michaelibad:'Di ganztaegig','Muellersches Volksbad':'Di ganztaegig, Fr 9-15',Nordbad:'Mi ganztaegig',Westbad:'Mi ganztaegig',Suedbad:'Do ganztaegig','Fresch Sauna':'1. Di/Monat 9-22'};
@@ -151,7 +153,7 @@ function getHoursTxt(sa){var h=SAUNA_HRS[sa];if(!h)return'';if(h.def)return'Mo-S
 function getRevision(sa){for(var i=0;i<REVISION.length;i++){if(REVISION[i][0]===sa)return REVISION[i][1]+' &ndash; '+REVISION[i][2];}return null;}
 
 // === FETCH ===
-var VERSION='v134';
+var VERSION='v135';
 var LOAD_QUOTES=[
   'Der Aufguss wird vorbereitet... heute Bergamotte.',
   'Der Aufguss wird vorbereitet... heute Blutorange.',
@@ -366,6 +368,7 @@ function render(){
     var hTxt=getHoursTxt(sel);var rev=getRevision(sel);var url=SAUNA_URL[sel];
     o+='<div style=\'font-size:10px;color:#8b949e;margin-bottom:12px;display:flex;gap:12px;flex-wrap:wrap;align-items:center\'>';
     if(hTxt)o+='<span>&#x1f552; '+hTxt+'</span>';
+    if(SAUNA_NOTE[sel])o+='<span>&#x2139;&#xFE0F; '+SAUNA_NOTE[sel]+'</span>';
     if(rev)o+='<span style=\'color:#d29922\'>&#x1f6a7; Revision: '+rev+'</span>';
     if(url)o+='<a href=\''+url+'\' target=\'_blank\' style=\'color:#58a6ff;text-decoration:none\'>&#x1f517; &Ouml;ffnungszeiten &rarr;</a>';
     if(SWM_NAMES[sel])o+='<a href=\'https://www.swm.de/baeder/saunen-muenchen#auslastung\' target=\'_blank\' style=\'color:#58a6ff;text-decoration:none\'>&#x1f4ca; Live-Auslastung &rarr;</a>';

@@ -47,6 +47,8 @@ Phoenixbad, Fresch und Claudius haben keine browserfähige Echtzeit-Quelle — d
 | Fresch Sauna (Freising) | Gips CMS API, JSON mit `ZoneUsages`, Zone `"Sauna"`, max 150 |
 | Claudius Therme (Köln) | HTML-Gäste-Ampel: HTML-Kommentare `<!-- full anchor` / `<!-- half anchor` zählen, Score 0–5 → Prozent |
 
+**Die Claudius-Ampel sitzt in der globalen Navigation**, nicht auf einer sauna-spezifischen Seite: `/` und `/sauna/` liefern identische Zählungen. Ein Wechsel der `CLAUDIUS_URL` auf die Sauna-Seite bringt deshalb nichts. Ob der Wert die Sauna oder die gesamte Therme meint, ist aus dem Markup **nicht** erkennbar — im HTML existiert nur dieser eine Indikator, und es gibt kein JavaScript, das weitere Auslastungsdaten nachlädt. Das Zählverfahren ist zudem fragil: sollte die Seite eines Tages zwei Ampeln serverseitig rendern, addiert `fetchClaudius()` beide stillschweigend zu einem Score über 5.
+
 Backend und Frontend nutzen inzwischen **dieselbe** SWM-Quelle, jeweils mit eigener `area_id`-Liste (`SWM_SAUNAS` bzw. `SWM`). Ein neues Bad muss an beiden Stellen eingetragen werden.
 
 **Vorsicht bei den Doppel-Einträgen:** Die REST-Antwort enthält pro Sauna zwei Areas — die benannte (`"Nordbad Sauna"`, id 63) und eine Kurzform (`"NB - Sauna"`, id 117). Die Kurzform steht durchgängig auf 0 und ist **nicht** die richtige. Immer die ausgeschriebene Variante nehmen.
@@ -183,7 +185,7 @@ Wenn sich eine Öffnungszeit oder ein Revisionstermin ändert, muss das an **bei
 
 Bereits vorhandene Divergenzen (nicht versehentlich "wegräumen", ohne die Ursache zu klären):
 - **Westbad-Revision endet unterschiedlich**: Frontend `01.09.2026`, Backend `2026-08-31`. Beides ist ohnehin eine Schätzung
-- **Claudius Therme** existiert nur im Backend. Im Frontend fehlen `SAUNA_HRS`, `SAUNA_URL` und `DAMEN_TXT` dafür — die Sauna erscheint zwar in der Heatmap (Sheet-Daten), aber `saunaIsOpen()` liefert für unbekannte Namen pauschal `true`, also wird nichts als "geschlossen" ausgegraut. Auch der Name der Datei/UI sagt "München", Claudius liegt in Köln
+- **Claudius Therme** liegt in Köln, nicht in München — der Titel der Seite sagt trotzdem „München & Umgebung"
 
 Sonderfälle, die schon eingebaut sind und leicht übersehen werden:
 - Müllersches Volksbad hat freitags nur bis 15:00 Damenzeit, nicht ganztägig
