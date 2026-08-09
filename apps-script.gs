@@ -124,7 +124,7 @@ function debugFreschAPI() {
 // jedes fetchAll()-Laufs -- nur so laesst sich pruefen, ob die Fassung im
 // Apps-Script-Projekt noch der Kopie im Repo entspricht. showVersions() aus
 // cleansing.gs zeigt beide auf einmal.
-var TRACKER_VERSION = 'v3.1';
+var TRACKER_VERSION = 'v3.2';
 
 var ALERT_EMAIL = "DEINE_EMAIL@gmail.com";  // <-- ANPASSEN!
 
@@ -161,7 +161,12 @@ var SWM_SAUNAS = [
 var PHOENIX_AJAX = "https://phoenixbad.de/wp-admin/admin-ajax.php";
 
 // ---- Claudius Therme Koeln (HTML Gaeste-Ampel) ----
-var CLAUDIUS_URL = "https://www.claudius-therme.de/";
+// Die Ampel sitzt in der Kopfleiste und wird pro Seite gerendert: die
+// Startseite zeigt das Gaesteaufkommen der GESAMTEN Therme, /sauna/ das der
+// Sauna. Vorher stand hier die Startseite -- damit wurde die Therme statt der
+// Sauna erfasst. Zum Gegenpruefen: testClaudius() loggt beide Seiten.
+var CLAUDIUS_URL = "https://www.claudius-therme.de/sauna/";
+var CLAUDIUS_URL_THERME = "https://www.claudius-therme.de/";
 
 // ---- Oeffnungszeiten pro Sauna (aus WebApp uebernommen) ----
 // Format: {def: ['HH:MM','HH:MM']} oder pro Wochentag {Montag: [...], ...}
@@ -453,8 +458,12 @@ function fetchPhoenixbad() {
 // Score 0-5 in 0.5er Schritten, gemappt auf 0-100%
 // =====================
 
-function fetchClaudius() {
-  var response = UrlFetchApp.fetch(CLAUDIUS_URL, { muteHttpExceptions: true });
+function fetchClaudius(url) {
+  // Cache-Buster: die Seite liefert Cache-Control max-age=604800 (7 Tage).
+  // Ohne eindeutige URL besteht das Risiko, eine veraltete Fassung zu lesen --
+  // genau der Fehler, der bei Phoenixbad zwei Tage lang Nullen erzeugt hat.
+  var target = (url || CLAUDIUS_URL) + "?nocache=" + new Date().getTime();
+  var response = UrlFetchApp.fetch(target, { muteHttpExceptions: true });
 
   if (response.getResponseCode() !== 200) {
     Logger.log("Claudius HTTP " + response.getResponseCode());
@@ -798,8 +807,19 @@ function testPhoenixbad() {
 }
 
 function testClaudius() {
-  var result = fetchClaudius();
-  Logger.log("Claudius Therme: " + JSON.stringify(result));
+  // Beide Seiten gegeneinander: weichen die Werte ab, ist die Ampel
+  // seitenspezifisch und CLAUDIUS_URL (= /sauna/) ist die richtige Quelle.
+  // Sind sie gleich, laesst sich daraus nichts schliessen -- dann bei
+  // deutlich unterschiedlichem Andrang nochmal ausfuehren.
+  var sauna = fetchClaudius(CLAUDIUS_URL);
+  var therme = fetchClaudius(CLAUDIUS_URL_THERME);
+  Logger.log("Sauna  (/sauna/): " + JSON.stringify(sauna));
+  Logger.log("Therme (Start)  : " + JSON.stringify(therme));
+  if (sauna && therme) {
+    Logger.log(sauna.score === therme.score
+      ? "Gleicher Wert -- keine Aussage moeglich, spaeter nochmal pruefen."
+      : "UNTERSCHIEDLICH -> Ampel ist seitenspezifisch, /sauna/ ist korrekt.");
+  }
 }
 
 function testSWM() {

@@ -47,7 +47,13 @@ Phoenixbad, Fresch und Claudius haben keine browserfähige Echtzeit-Quelle — d
 | Fresch Sauna (Freising) | Gips CMS API, JSON mit `ZoneUsages`, Zone `"Sauna"`, max 150 |
 | Claudius Therme (Köln) | HTML-Gäste-Ampel: HTML-Kommentare `<!-- full anchor` / `<!-- half anchor` zählen, Score 0–5 → Prozent |
 
-**Die Claudius-Ampel sitzt in der globalen Navigation**, nicht auf einer sauna-spezifischen Seite: `/` und `/sauna/` liefern identische Zählungen. Ein Wechsel der `CLAUDIUS_URL` auf die Sauna-Seite bringt deshalb nichts. Ob der Wert die Sauna oder die gesamte Therme meint, ist aus dem Markup **nicht** erkennbar — im HTML existiert nur dieser eine Indikator, und es gibt kein JavaScript, das weitere Auslastungsdaten nachlädt. Das Zählverfahren ist zudem fragil: sollte die Seite eines Tages zwei Ampeln serverseitig rendern, addiert `fetchClaudius()` beide stillschweigend zu einem Score über 5.
+**Die Claudius-Ampel sitzt in der Kopfleiste und gilt pro Seite:** die Startseite zeigt das Gästeaufkommen der gesamten Therme, `/sauna/` das der Sauna. `CLAUDIUS_URL` zeigt deshalb auf `/sauna/` — vorher stand dort die Startseite, wodurch bis zum 09.08.2026 die Therme statt der Sauna erfasst wurde. Die Altdaten im Sheet stammen also aus der falschen Quelle.
+
+Beim Nachprüfen per `curl` liefern beide Seiten oft identisches HTML samt gleicher Farbklasse (`bg-brown-l` = „mittel"), obwohl der Browser unterschiedliche Werte zeigt. Verlass dich für diese Frage deshalb **nicht** auf einen einzelnen Abruf, sondern auf `testClaudius()` — die Funktion holt beide Seiten mit Cache-Buster und vergleicht sie.
+
+Die Seite schickt `Cache-Control: max-age=604800` (7 Tage) auf HTML, weshalb `fetchClaudius()` einen Cache-Buster an die URL hängt. Das ist dieselbe Falle, die bei Phoenixbad zwei Tage Nullen erzeugt hat.
+
+Das Zählverfahren ist außerdem fragil: sollte die Seite eines Tages zwei Ampeln serverseitig rendern, addiert `fetchClaudius()` beide stillschweigend zu einem Score über 5.
 
 Backend und Frontend nutzen inzwischen **dieselbe** SWM-Quelle, jeweils mit eigener `area_id`-Liste (`SWM_SAUNAS` bzw. `SWM`). Ein neues Bad muss an beiden Stellen eingetragen werden.
 
